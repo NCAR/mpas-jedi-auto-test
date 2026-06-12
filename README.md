@@ -11,7 +11,6 @@ These scripts are meant to run in concert, in order to coordinate software build
 1. `crontab.sh` A crontab table to be installed on a cron enabled machine, e.g. cron.hpc.ucar.edu.
 2. `mpas-bundle-cron.sh` A script which will build the mpas-bundle package. It can be invoked from cron or run manually. After a successful build it will run the mpas-jedi ctests.
 3. `run_cylc.sh` A script which will run cylc scenarios, as well as create comparison graphs between different runs of the scenarios.
-4. `body.html' The base html file for appending mpas-jedi ctest results to. This will get copied to a web server.
 5. `web/index.php` The main php for displaying MPAS-Workflow cylc results from a web server.
 6. `web/listgraphs.php` This traverses a hierarchy of files and displays MPAS-Workflow cylc comparison graphs.
 7. `web/inc-*` a set of support files for displaying a stylized table.
