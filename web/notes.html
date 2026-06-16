@@ -1,0 +1,104 @@
+<!DOCTYPE html> <html> <head> <style>
+table { font-family: arial, sans-serif; border-collapse: collapse; width: 100%; }
+td, th { border: 1px solid #dddddd; text-align: left; padding: 8px; }
+tr:nth-child(even) { background-color: #dddddd; } </style> </head>
+        <title> Weekly Cycling Test Notes </title>
+<body>
+    <h2>Notes for various cycling runs</h2>
+    <h3>Spack-stack (SS) version comparisons</h3>
+
+    <ol>
+    <li>To compare SS 1.8.0 with SS 1.6.0 click the Graphs vs Previous for the 2025-04-14 entry.
+    <strong>2025-04-14</strong> run uses SS 1.8.0, <strong>2025-04-13</strong> uses SS 1.6.0 </li>
+    <ul>
+        <li> results are the same.</li>
+        <li> Run time speed and memory use was comparable.</li>
+        <li>runs from 2025-05-18 on use SS 1.8.0. </li>
+    </ul>
+    <li>To compare SS 1.9.1 with SS 1.6.0 click the Graphs vs Previous for the 2025-03-30 entry.
+    <strong>2025-03-30</strong> run uses SS 1.6.0, <strong>2025-03-28</strong> uses SS 1.9.1 </li>
+    <ul>
+        <li> results are the same.</li>
+        <li> Run time memory use was significantly greater using SS 1.9.1.
+            <a href="https://docs.google.com/spreadsheets/d/1HmRrAe2Wj2hf8T1vziXF3EOTM8U7kwza6hkfkq8IzVk/edit?gid=470226586#gid=470226586"> SS 1.6.0 OOPS stats</a>,
+            <a href="https://docs.google.com/spreadsheets/d/1HmRrAe2Wj2hf8T1vziXF3EOTM8U7kwza6hkfkq8IzVk/edit?gid=941798863#gid=941798863"> SS 1.9.1 OOPS stats</a>
+        </li>
+    </ul>
+    <li>To compare SS 1.9.3 with SS 1.8.0 click the Graphs vs Previous for the 2025-10-29 entry.
+    <strong>2025-10-26</strong> run uses SS 1.8.0, <strong>2025-10-29</strong> uses SS 1.9.3 </li>
+    <ul>
+        <li> results are the same.</li>
+        <li> Run time speed and memory use was comparable.</li>
+    </ul>
+    </ol>
+
+    <h3> Derecho OS upgrade to SLES 15-SP6 </h3>
+    <ol>
+        <li> Derecho's OS was upgraded on Nov 4-5 2025 </li>
+        <li> New runtime libraries cause deviations in results </li>
+        <li> <strong>
+          <a href="https://www2.mmm.ucar.edu/projects/mpas-jedi/weekly-cycling/#2025-11-12"> 2025-11-12 </a>
+            </strong> entry compares 11/12 mpas-bundle code built on upgraded Derecho with 11/02 mpas-bundle code built on pre-upgraded Derecho.
+            <ul>
+                <li> Results vary +- 3 to 3.5% </li>
+                <li> Results tend to mostly improve </li>
+            </ul>
+        </li>
+        <li> <strong>
+          <a href="https://www2.mmm.ucar.edu/projects/mpas-jedi/weekly-cycling/#2025-11-02-sp6"> 2025-11-02-sp6</a>
+            </strong> entry compares 11/12 mpas-bundle code built on upgraded Derecho with 11/02 mpas-bundle code built on upgraded Derecho.
+            <ul>
+                <li> Results are the  same</li>
+                <li> this indicates the variances in the 2025-11-12 graphs were caused by upgraded libraries, not by changes to the mpas-bundle code between 11/02 and 11/12</li>
+            </ul>
+        </li>
+    </ol>
+    <h3> Various deviations </h3>
+    <ol>
+      <li> <strong> <a href="https://www2.mmm.ucar.edu/projects/mpas-jedi/weekly-cycling#2025-12-04"> 2025-12-04</a>
+          </strong> entry compares a week long simulation using IAU</li>
+          <ul><li>There are significant variations </li></ul>
+      <li> <strong>
+        <a href="https://www2.mmm.ucar.edu/projects/mpas-jedi/weekly-cycling/#2025-06-29-old"> 2025-06-29-old </a>
+        </strong> entry compares the 6/29 code built with the 6/22 version of crtm with the 6/22 run </li>
+      <li> <strong> <a href="https://www2.mmm.ucar.edu/projects/mpas-jedi/weekly-cycling#2025-06-29"> 2025-06-29</a>
+          </strong> entry compares with the weekly 2025-06-22 run </li>
+          <ul><li>There is significant degradation due to crtm changes</li></ul>
+      <li> <strong> <a href="https://www2.mmm.ucar.edu/projects/mpas-jedi/weekly-cycling#2025-03-11"> 2025-03-11</a>
+          </strong> entry compares the weekly <strong> 2025-03-09 </strong> run with an mpas-bundle 3.0.2 build using crtm bug fix PR 209 </li>
+      <li> <strong> <a href="https://www2.mmm.ucar.edu/projects/mpas-jedi/weekly-cycling#2025-03-07"> 2025-03-07 </a>
+          </strong> entry compares the weekly <strong> 2025-02-16 </strong> run with an mpas-bundle 3.0.2 build using crtm 2.4.1 </li>
+      <li> <strong> <a href="https://www2.mmm.ucar.edu/projects/mpas-jedi/weekly-cycling#2025-03-09"> 2025-03-09 </a>
+          </strong> entry compares to the weekly <strong> 2025-02-16 </strong> run. The results are the same. </li>
+      <li> <strong> <a href="https://www2.mmm.ucar.edu/projects/mpas-jedi/weekly-cycling#2025-01-06"> 2025-01-06 </a>
+        </strong> run compares MPAS-Model using SMIOL to the weekly <strong> 2025-01-05 </strong> run with MPAS-Model using PIO. The results are the same.</li>
+            <ul><li> All runs after 2025-01-19 use MPAS-Model with SMIOL </li></ul>
+      <li> <strong> <a href="https://www2.mmm.ucar.edu/projects/mpas-jedi/weekly-cycling#2025-01-05"> 2025-01-05 </a>
+          </strong> entry compares to the weekly <strong> 2024-12-31 </strong> run. The results diverged. </li>
+        <ul>
+            <li>2025-01-05 was the first build using the develop branch of mpas-model. Previous builds used hotfix-v8.2.2 </li>
+            <li> After investigating, the mpas-model branch change did not cause the diversion, see below. </li>
+        </ul>
+      <li> <strong> <a href="https://www2.mmm.ucar.edu/projects/mpas-jedi/weekly-cycling#2025-mpas8-2-2"> 2025-mpas8-2-2 </a>
+          </strong> entry compares a new mpas bundle with MPAS-Model 8.2.2 to the weekly <strong> 2024-12-31 </strong> run. The results diverged. </li>
+        <ul>
+            <li> The new mpas-bundle build used all of the same versions of the packages as the 2024-12-31 build. </li>
+            <li> The new version used the same version of spack-stack (1.6), gcc tools (12.2.0), and mpich (8.1.25) </li>
+            <li> The new version was built on 2025-04-21 </li>
+            <li> The results of the new version appear to be the same as the <strong> 2025-01-05 </strong>run. </li>
+            <li> It is curently not understood what is causing the variances. </li>
+            <li> There are no comparison graphs for the new version and the mpas-bundle 8.0.2 baseline. </li>
+        </ul>
+    </ol>
+
+    <h3> GPU runs </h3>
+    <ol>
+        <li> <strong> 2025-05-30 </strong> entry compares the GPU run of <strong> 2025-05-30 </strong> with the cpu run of <strong> 2025-05-29</strong>. The results <strong>diverge</strong>.</li>
+        <li> <strong> 2025-05-31 </strong> entry compares the GPU run of <strong> 2025-05-31 </strong> with the GPU run of <strong> 2025-05-30</strong>. </li>
+        <li> <strong> 2025-06-01 </strong> entry compares the cpu run of <strong> 2025-06-01 </strong> with the GPU run of <strong> 2025-05-31</strong>. The results <strong>diverge</strong>.</li>
+        <li> <strong> 2025-06-15 </strong> entry compares the cpu run of <strong> 2025-06-15 </strong> with the GPU run of <strong> 2025-06-01</strong>. The results <strong>diverge</strong>.</li>
+    </ol>
+
+</body> </html>
+
+
