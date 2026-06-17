@@ -134,7 +134,7 @@ print_header()
   "td, th { border: 1px solid #dddddd; text-align: left; padding: 8px; }" \
   "tr:nth-child(even) { background-color: #dddddd; } </style> </head>" \
   "<body> <h2>mpas-bundle mpas-jedi ctest results</h2>" \
-  "<table> <tr> <th>Date</th> <th>Results</th> <th>Spack</th> <th>Compiler</th> <th>Tools</th> <th>Stats</th></tr>")
+  "<table> <tr> <th>Date</th> <th>Results</th> <th>Spack</th> <th>CC </th> <th>Tools</th> <th>Stats</th></tr>")
 
   for line in ${!html_header[@]}; do
     echo -n ${html_header[$line]} >> ${outfile}
@@ -157,7 +157,7 @@ run_cmake()
 cat > $cmake_script << CMAKE_EOF
 #!/bin/bash
 #
-cd $1 && source $2/env-setup/$3-derecho.sh && if [ -f Makefile ]; then echo "make update" && make update |& tee make.update.log; fi && cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DBUNDLE_SKIP_RTTOV=ON -DMPAS_DOUBLE_PRECISION=$4 ctest_update  $2;
+cd $1 && source $2/env-setup/$3-derecho.sh && if [ -f Makefile ]; then echo "make update" && make update |& tee make.update.log; fi && cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DBUNDLE_SKIP_RTTOV=ON -DMPAS_DOUBLE_PRECISION=$4 -DCMAKE_BUILD_TYPE=$5 ctest_update  $2;
 CMAKE_EOF
 
   chmod 755 ${cmake_script}
@@ -241,6 +241,7 @@ run_ctests()
   local cc=$2
   local make_job=$3
   local timestamp=$4
+  local build_type=$5
 
   # output params
   local lsummary="" # 5th param
@@ -250,7 +251,7 @@ run_ctests()
   # create script to run ctest and run it, holding it until the make job finishes
   mv ./${CTEST_LOGFILE} ./${CTEST_LOGFILE}.old
   log "${scripts}/run_make.bundle.sh -A ${ACCOUNT} -q ${QUEUE} -p economy -x ctest -c ${cc} -N cron-${cc}-ctest-mpas -m -n"
-  ${scripts}/run_make.bundle.sh -A ${ACCOUNT} -q ${QUEUE} -p economy -x ctest -c ${cc} -N "cron-${cc}-ctest-mpas" -m -n
+  ${scripts}/run_make.bundle.sh -A ${ACCOUNT} -q ${QUEUE} -p economy -x ctest -c ${cc} -N "cron-${cc}-ctest-${build_type}" -m -n
   local ctest_job=$(qsub -W depend=afterok:${make_job} ./ctest.pbs.sh) || \
     { log "cannot connect to Derecho PBS" ; exit 1; }
   log "${cc} ctest: ${ctest_job}"
@@ -293,9 +294,9 @@ run_ctests()
     fi
   fi
   log "run_ctests() summary:$lsummary href:$lhref ctest_time:$lctest_time"
-  eval "$5=\"$lsummary\""
-  eval "$6=\"$lctest_time\""
-  eval "$7=\"$lhref\""
+  eval "$6=\"$lsummary\""
+  eval "$7=\"$lctest_time\""
+  eval "$8=\"$lhref\""
 }
 
 # build the html file and copy it to the web server
@@ -309,14 +310,22 @@ make_html()
   local summary=$6
   local href=$7
   local sha_file=$8
+  local build_type=$9
   #local dest_dir="/web/htdocs/projects/mpas-jedi/weekly-ctests"
 
   log "make_html() dest_dir: $dest_dir make_job=$make_job ctest_time=$ctest_time"
   log "            cc=$cc timestamp=$timestamp href=$href summary=$summary"
   log "            chref=$href sha_file=$sha_file sha_file:t=${sha_file##*/}"
 
+  local bld="Release"
+  if [ "$build_type" == "Debug" ]; then
+    bld=$build_type
+  elif [ "$build_type" == "RelWithDebInfo" ]; then
+    bld="Rel-Deb"
+  fi
+
   # get tool versions to put into summary table
-  local spack_stack=$(grep spack-stack- ${BUNDLE_DIR}/env-setup/${cc}-derecho.sh | awk -F/ '{print $8}')
+  local spack_stack=$(grep spack-stack- ${BUNDLE_DIR}/env-setup/${cc}-derecho.sh | awk -F/ '{print $8}' | awk -F- '{print $3}')
   log "spack-stack: ${spack_stack}"
   if [ ${cc} == "gnu" ]; then
     local comp="gcc"
@@ -325,9 +334,9 @@ make_html()
   elif [ ${cc} == "nvhpc" ]; then
     local comp="nvhpc"
   fi
-  local compiler=$(grep "load .*${comp}" ${BUNDLE_DIR}/env-setup/${cc}-derecho.sh | awk '{print $3}')
+  local compiler=$(grep "load .*${comp}" ${BUNDLE_DIR}/env-setup/${cc}-derecho.sh | awk '{print $3}' | awk -F- '{print $2}')
   log "compiler: ${compiler}"
-  local mpich=$(grep "load .*cray-mpich" ${BUNDLE_DIR}/env-setup/${cc}-derecho.sh | awk '{print $3}')
+  local mpich=$(grep "load .*cray-mpich" ${BUNDLE_DIR}/env-setup/${cc}-derecho.sh | awk '{print $3}' | awk -F- '{print $3}')
   log "mpich: ${mpich}"
 
 
@@ -336,7 +345,7 @@ make_html()
 
   # prepend current results to the table, then add the old entries
   local stats="<a href=./${sha_file##*/}> Q:${QUEUE%"@desched1"} make:${make_time} ctest:${ctest_time}</a>"
-  echo "<tr><td>${timestamp}</td> <td><a ${href}>${summary}</a></td> <td>${spack_stack}</td> <td>${cc}</td> <td>${compiler} ${mpich}</td> <td>${stats}</td> " > body.html
+  echo "<tr><td>${timestamp}</td> <td><a ${href}>${summary}</a></td> <td>${spack_stack}</td> <td>${cc}</td> <td>${bld} ${compiler} ${mpich}</td> <td>${stats}</td> " > body.html
   if [ -f ${HTML_BODY_FILE} ]; then
     cat ${HTML_BODY_FILE} >> body.html
   fi
@@ -387,7 +396,8 @@ build_and_test()
   local html_dir=$3
   local run_cmake=$4
   local sha_file=$5
-  local suffix=$6
+  local build_type=$6
+  local suffix=$7
 
   local build_dir_suffix=""
   if [ $dbl_p == "ON" ]; then
@@ -403,6 +413,10 @@ build_and_test()
   if [ "$suffix" != "" ]; then
     BUILD_DIR="${BUILD_DIR}_${suffix}"
   fi
+  if [ "$build_type" != "Release" ]; then
+    BUILD_DIR="${BUILD_DIR}_${build_type}"
+    NTHREADS="-t 56"
+  fi
 
   mkdir -p ${BUILD_DIR}
   log "BUNDLE_DIR ${BUNDLE_DIR}"
@@ -413,13 +427,14 @@ build_and_test()
   # run cmake on a login node (compute nodes have poor internet transmission)
   # block until cmake finishes
   if [[ "$run_cmake" == "yes" ]]; then
-    run_cmake ${BUILD_DIR} ${BUNDLE_DIR} ${cc} $dbl_p
+    log "run_cmake ${BUILD_DIR} ${BUNDLE_DIR} ${cc} $dbl_p $build_type"
+    run_cmake ${BUILD_DIR} ${BUNDLE_DIR} ${cc} $dbl_p $build_type
   fi
 
   # create script to run gnu make and run it
   mv make.pbs.sh.log make.pbs.sh.log.old
-  log "${scripts}/run_make.bundle.sh -A ${ACCOUNT} -q ${QUEUE} -p economy -x make -c ${cc} -N cron-${cc}-make-mpas -m -n"
-  ${scripts}/run_make.bundle.sh -A ${ACCOUNT} -q ${QUEUE} -p economy -x make -c ${cc} -N "cron-${cc}-make-mpas" -m -n
+  log "${scripts}/run_make.bundle.sh -A ${ACCOUNT} -q ${QUEUE} -p economy -x make -c ${cc} -N cron-${cc}-make-${build_type} ${NTHREADS} -m -n"
+  ${scripts}/run_make.bundle.sh -A ${ACCOUNT} -q ${QUEUE} -p economy -x make -c ${cc} -N "cron-${cc}-make-${build_type}" ${NTHREADS} -m -n
   local make_job=$(qsub make.pbs.sh) || { log "cannot connect to Derecho PBS"; exit 1; }
   log "${cc} make: ${make_job}"
   local ctest_time=""
@@ -428,7 +443,7 @@ build_and_test()
 
   # only run ctest for double precision builds
   if [ "${dbl_p}" == "ON" ]; then
-    run_ctests $scripts $cc $make_job $timestamp summary ctest_time href  
+    run_ctests $scripts $cc $make_job $timestamp $build_type summary ctest_time href  
     log "build_and_test() summary:$summary href:$href ctest_time:$ctest_time"
   else
     # wait for the make job
@@ -460,7 +475,7 @@ build_and_test()
   # create and copy the docs to the web page directory
   #
   log "calling make_html() dir: $html_dir make_job $make_job ctest_time $ctest_time cc $cc timestamp $timestamp href $href summary $summary"
-  make_html $html_dir $make_job $cc $timestamp $ctest_time "$summary" $href  $sha_file
+  make_html $html_dir $make_job $cc $timestamp $ctest_time "$summary" $href  $sha_file $build_type
 }
 
 CTEST_LOGFILE="ctest.pbs.sh.log"
@@ -475,9 +490,10 @@ help=""
 run_cmake="yes"
 suffix=""
 ACCOUNT="nmmm0015"
+build_type="Release"
 
 # get comamnd line args
-while getopts d:b:q:a:p:c:l:o:x:fhn flag
+while getopts d:b:q:a:p:t:c:l:o:x:fhn flag
 do
   case "${flag}" in
     d) BUNDLE_DIR="${OPTARG}";;
@@ -485,6 +501,7 @@ do
     q) QUEUE="${OPTARG}";;
     a) ACCOUNT="${OPTARG}";;
     p) precision=${OPTARG};;
+    t) build_type=${OPTARG};;
     c) tools=${OPTARG};;
     l) LOCK_FILE=${OPTARG};;
     o) html_dir=${OPTARG};;
@@ -577,17 +594,17 @@ else
   log "building with tools ${tools}"
   # build gnu version and run ctest
   if [[ "$tools" == "gnu" || "$tools" == "all" ]]; then
-    build_and_test "gnu" $dbl_precision $html_dir $run_cmake $sha_file $suffix
+    build_and_test "gnu" $dbl_precision $html_dir $run_cmake $sha_file $build_type $suffix
   fi
 
   # build intel version and run ctest
   if [[ "$tools" == "intel" || "$tools" == "all" ]]; then
-    build_and_test "intel" $dbl_precision $html_dir $run_cmake $sha_file $suffix
+    build_and_test "intel" $dbl_precision $html_dir $run_cmake $sha_file $build_type $suffix
   fi
 
   # build nvhpc version and run ctest
   if [[ "$tools" == "nvhpc" || "$tools" == "all" ]]; then
-    build_and_test "nvhpc" $dbl_precision $html_dir $run_cmake $sha_file $suffix
+    build_and_test "nvhpc" $dbl_precision $html_dir $run_cmake $sha_file $build_type $suffix
   fi
 fi
 
