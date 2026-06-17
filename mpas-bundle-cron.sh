@@ -146,6 +146,14 @@ print_header()
 print_footer()
 {
   outfile=$1
+
+  # write indexes for previous years
+  echo "</table><table> <tr> <th><h2>Year</h2></th>" >> ${outfile}
+  echo "<tr><td> 2025 </td> <td><a href=2025/index.html>2025 test results</a> </td> </tr>" >> ${outfile}
+  echo "<tr><td> 2024 </td> <td><a href=2024/index.html>2024 test results</a> </td> </tr>" >> ${outfile}
+  echo "<tr><td> </td> </tr>" >> ${outfile}
+
+  # page end
   echo "</table> </body> </html>" >> ${outfile}
 }
 
@@ -246,7 +254,7 @@ run_ctests()
   # output params
   local lsummary="" # 5th param
   local lctest_time=""  # 6th param
-  local lhref="href=\"./ctest.results.log.${timestamp}\"" # 7th param
+  local lhref="href=\"./results/ctest.results.log.${timestamp}\"" # 7th param
 
   # create script to run ctest and run it, holding it until the make job finishes
   mv ./${CTEST_LOGFILE} ./${CTEST_LOGFILE}.old
@@ -344,7 +352,7 @@ make_html()
   local make_time=$(qstat -xf ${make_job} | grep used.walltime | awk '{print $3}')
 
   # prepend current results to the table, then add the old entries
-  local stats="<a href=./${sha_file##*/}> Q:${QUEUE%"@desched1"} make:${make_time} ctest:${ctest_time}</a>"
+  local stats="<a href=./shas/${sha_file##*/}> Q:${QUEUE%"@desched1"} make:${make_time} ctest:${ctest_time}</a>"
   echo "<tr><td>${timestamp}</td> <td><a ${href}>${summary}</a></td> <td>${spack_stack}</td> <td>${cc}</td> <td>${bld} ${compiler} ${mpich}</td> <td>${stats}</td> " > body.html
   if [ -f ${HTML_BODY_FILE} ]; then
     cat ${HTML_BODY_FILE} >> body.html
@@ -367,15 +375,15 @@ make_html()
     echo >> ${resultsfile}
     egrep -A 20 'Test|Start' ${CTEST_LOGFILE} >> ./${resultsfile}
     mv ${resultsfile} ctest.results.log.${timestamp}
-    log "scp ./ctest.results.log.${timestamp} ${dest}"
-    scp ./ctest.results.log.${timestamp} ${dest} || { log "scp ctest_results failed"; }
-    log "scp ${sha_file} ${dest}"
-    scp ${sha_file} ${dest} || { log "scp $sha_file failed"; }
+    log "scp ./ctest.results.log.${timestamp} ${dest}/results/"
+    scp ./ctest.results.log.${timestamp} ${dest}/results/ || { log "scp ctest_results failed"; }
+    log "scp ${sha_file} ${dest}/shas/"
+    scp ${sha_file} ${dest}/shas/ || { log "scp $sha_file failed"; }
     mv ctest.results.log.${timestamp} ctest.results.log.old
   else
     log "${CTEST_LOGFILE} doesn't exist"
-    log "scp ${sha_file} ${dest}"
-    scp ${sha_file} ${dest} || { log "scp $sha_file failed"; }
+    log "scp ${sha_file} ${dest}/shas"
+    scp ${sha_file} ${dest}/shas || { log "scp $sha_file failed"; }
   fi
   # clean up old index files by putting them in a tar file
   log "ssh ${host} cd ${dest_dir} && tar --remove-files -rf ${index_tarfile} index.2"
@@ -587,6 +595,7 @@ if [ "$force_build" -eq 0 ]; then
     log "forcing build, check_git_changes returned 1"
   fi
 fi
+
 
 if [ "$force_build" -eq 0 ]; then
   log "no source changes, not running"
