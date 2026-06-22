@@ -132,6 +132,7 @@ print_header()
   local html_header=("<!DOCTYPE html> <html> <head> <style>" \
   "table { font-family: arial, sans-serif; border-collapse: collapse; width: 100%; }" \
   "td, th { border: 1px solid #dddddd; text-align: left; padding: 8px; }" \
+  "th { top:0; position:sticky; background-color:white; border: 1px solid black; }" \
   "tr:nth-child(even) { background-color: #dddddd; } </style> </head>" \
   "<body> <h2>mpas-bundle mpas-jedi ctest results</h2>" \
   "<table> <tr> <th>Date</th> <th>Results</th> <th>Spack</th> <th>CC </th> <th>Tools</th> <th>Stats</th></tr>")
@@ -165,7 +166,7 @@ run_cmake()
 cat > $cmake_script << CMAKE_EOF
 #!/bin/bash
 #
-cd $1 && source $2/env-setup/$3-derecho.sh && if [ -f Makefile ]; then echo "make update" && make update |& tee make.update.log; fi && cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DBUNDLE_SKIP_RTTOV=ON -DMPAS_DOUBLE_PRECISION=$4 -DCMAKE_BUILD_TYPE=$5 ctest_update  $2;
+cd $1 && source $2/env-setup/$3-derecho.sh && source $2/env-setup/ioda-modules.list && if [ -f Makefile ]; then echo "make update" && make update |& tee make.update.log; fi && cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DBUNDLE_SKIP_RTTOV=ON -DMPAS_DOUBLE_PRECISION=$4 -DBUILD_IODA_CONVERTERS=ON -DCMAKE_BUILD_TYPE=$5 ctest_update  $2;
 CMAKE_EOF
 
   chmod 755 ${cmake_script}
@@ -262,7 +263,10 @@ run_ctests()
   ${scripts}/run_make.bundle.sh -A ${ACCOUNT} -q ${QUEUE} -p economy -x ctest -c ${cc} -N "cron-${cc}-ctest-${build_type}" -m -n
   local ctest_job=$(qsub -W depend=afterok:${make_job} ./ctest.pbs.sh) || \
     { log "cannot connect to Derecho PBS" ; exit 1; }
-  log "${cc} ctest: ${ctest_job}"
+  log "${scripts}/run_make.bundle.sh -A ${ACCOUNT} -q ${QUEUE} -p economy -x ctest-ioda -c ${cc} -N cron-${cc}-ctest-mpas -m -n"
+  ${scripts}/run_make.bundle.sh -A ${ACCOUNT} -q ${QUEUE} -p economy -x ctest-ioda -c ${cc} -N "cron-${cc}-ctest-${build_type}" -m -n
+  local ctest_ioda_job=$(qsub -W depend=afterok:${make_job} ./ctest-ioda.pbs.sh) || \
+    { log "cannot connect to Derecho PBS" ; exit 1; }
 
   # wait for the ctest job to show up in the queue, check every 5 seconds
   queue_wait ${ctest_job} 1 5
