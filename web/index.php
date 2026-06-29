@@ -59,17 +59,17 @@ function build_date_table()
         $model_hdrs = "Date,Graph%20Type";
         $base_model_dir = "$web_path/$dir/$subdirs[2]/model/$model_dirs[0]/mpas_analyses";
         $base_model_anchor = "
-            <a href=listgraphs.php/?baseline=$base_title&tbl_hdrs=$model_hdrs&date=$dir&column1=$dir&path=$base_model_dir&suffix=mmgfsan>View Model Plots</a>";
+            <a href=web/listgraphs.php/?baseline=$base_title&tbl_hdrs=$model_hdrs&date=$dir&column1=$dir&path=$base_model_dir&suffix=mmgfsan>View Model Plots</a>";
         $prev_model_dir = "$web_path/$dir/$subdirs[2]/model/$model_dirs[1]/mpas_analyses";
         $prev_model_anchor = "
-            <a href=listgraphs.php/?baseline=$prev_title&tbl_hdrs=$model_hdrs&date=$dir&column1=$dir&path=$prev_model_dir&suffix=mmgfsan>View Model Plots</a>";
+            <a href=web/listgraphs.php/?baseline=$prev_title&tbl_hdrs=$model_hdrs&date=$dir&column1=$dir&path=$prev_model_dir&suffix=mmgfsan>View Model Plots</a>";
         $obs_hdrs = "Date,Analysis%20Type";
         $base_obs_dir = "$web_path/$dir/$subdirs[2]/obs/$obs_dirs[0]";
         $base_obs_anchor = "
-            <a href=listgraphs.php/?baseline=$base_title&tbl_hdrs=$obs_hdrs&date=$dir&column1=$dir&path=$base_obs_dir>View Obs Plots</a>";
+            <a href=web/listgraphs.php/?baseline=$base_title&tbl_hdrs=$obs_hdrs&date=$dir&column1=$dir&path=$base_obs_dir>View Obs Plots</a>";
         $prev_obs_dir = "$web_path/$dir/$subdirs[2]/obs/$obs_dirs[1]";
         $prev_obs_anchor = "
-            <a href=listgraphs.php/?baseline=$prev_title&tbl_hdrs=$obs_hdrs&date=$dir&column1=$dir&path=$prev_obs_dir>View Obs Plots</a>";
+            <a href=web/listgraphs.php/?baseline=$prev_title&tbl_hdrs=$obs_hdrs&date=$dir&column1=$dir&path=$prev_obs_dir>View Obs Plots</a>";
         $color="black";
       }
 
@@ -133,7 +133,7 @@ function build_date_table()
                         <strong>View Plots</strong> links will show graph types for that rows date.</p> 
                       <p></p>
                       <p> View notes about various comparison graphs:
-                      <a href="/projects/mpas-jedi/weekly-cycling/notes.html"></i> View graph notes</a></p>
+                      <a href="/projects/mpas-jedi/weekly-cycling/web/notes.html"></i> View graph notes</a></p>
                     </div>
                 </div>
 
