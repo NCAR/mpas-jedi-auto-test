@@ -242,6 +242,56 @@ EOF
   return $ret_code
 }
 
+# check the results of a test
+check_ctest_results()
+{
+  local logfile=$1
+  local make_job=$2
+  local ctest_job=$3
+  local test_name=$4
+
+  # output params
+  local lsummary # $5
+  local lctest_time # $6
+  local lhref # $7
+
+  log "check_ctest_results() logfile=$logfile test_name=$test_name"
+
+  # if there's no log file, the make was probably aborted, so ctest didn't run
+  if [ ! -f ${logfile} ]; then
+    # check the make job for success
+    check_pbs_return $make_job
+    local make_rc=$?
+    if [ "$make_rc" -ne 0 ]; then
+      lsummary="make job failed return code $make_rc"
+      lctest_time="NA"
+      lhref=""
+    else
+      check_pbs_return $ctest_job
+      local ctest_rc=$?
+      if [ "$ctest_rc" -ne 0 ]; then
+        lsummary="$test_name job failed return code $ctest_rc"
+        lctest_time="NA"
+        lhref=""
+      else
+        lsummary="$test_name didn't run, unknown failure"
+        lctest_time="NA"
+        lhref=""
+      fi
+    fi
+  else
+    lsummary="$test_name "
+    lsummary+=`grep 'tests .*passed' ${logfile} | awk '{printf "%s %s\n", $1, $3}'`
+    if [ -z "$lsummary" ]; then
+      lsummary="$test_name run didn't complete"
+    fi
+  fi
+
+  eval "$5=\"$lsummary\""
+  eval "$6=\"$lctest_time\""
+  eval "$7=\"$lhref\""
+}
+
 # run the ctests
 run_ctests()
 {
@@ -253,12 +303,13 @@ run_ctests()
   local build_type=$5
 
   # output params
-  local lsummary="" # 5th param
-  local lctest_time=""  # 6th param
-  local lhref="href=\"./results/ctest.results.log.${timestamp}\"" # 7th param
+  local lmpas_summary="" # 6th param
+  local lmpas_ctest_time=""  # 7th param
+  local lmpas_href="href=\"./results/ctest.results.log.${timestamp}\"" # 8th param
 
   # create script to run ctest and run it, holding it until the make job finishes
   mv ./${CTEST_LOGFILE} ./${CTEST_LOGFILE}.old
+  mv ./${CTEST_IODA_LOGFILE} ./${CTEST_IODA_LOGFILE}.old
   log "${scripts}/run_make.bundle.sh -A ${ACCOUNT} -q ${QUEUE} -p economy -x ctest -c ${cc} -N cron-${cc}-ctest-mpas -m -n"
   ${scripts}/run_make.bundle.sh -A ${ACCOUNT} -q ${QUEUE} -p economy -x ctest -c ${cc} -N "cron-${cc}-ctest-${build_type}" -m -n
   local ctest_job=$(qsub -W depend=afterok:${make_job} ./ctest.pbs.sh) || \
@@ -275,40 +326,48 @@ run_ctests()
   queue_wait ${ctest_job} 0 60
 
   # get the runtimes for the PBS ctest job
-  lctest_time=$(qstat -xf ${ctest_job} | grep used.walltime | awk '{print $3}')
+  lmpas_ctest_time=$(qstat -xf ${ctest_job} | grep used.walltime | awk '{print $3}')
+
+  check_ctest_results $CTEST_LOGFILE $make_job $ctest_job "mpas-ctest" lmpas_summary lmpas_ctest_time lmpas_href
+  log "run_ctests() summary:$lmpas_summary href:$lmpas_href ctest_time:$lmpas_ctest_time"
+
+  local lioda_summary=""
+  local lioda_ctest_time=""
+  local lioda_href="href=\"./results/ctest-ioda.results.log.${timestamp}\"" # 8th param
+  check_ctest_results $CTEST_IODA_LOGFILE $make_job $ctest_ioda_job "ioda-ctest" lioda_summary lioda_ctest_time lioda_href
+  log "run_ctests() iodasummary:$lioda_summary iodahref:$lioda_href iodactest_time:$lioda_ctest_time"
 
   # if there's no log file, the make was probably aborted, so ctest didn't run
-  if [ ! -f ${CTEST_LOGFILE} ]; then
+#  if [ ! -f ${CTEST_LOGFILE} ]; then
     # check the make job for success
-    check_pbs_return $make_job
-    local make_rc=$?
-    if [ "$make_rc" -ne 0 ]; then
-      lsummary="make job failed return code $make_rc"
-      lctest_time="NA"
-      lhref=""
-    else
-      check_pbs_return $ctest_job
-      local ctest_rc=$?
-      if [ "$ctest_rc" -ne 0 ]; then
-        lsummary="ctest job failed return code $ctest_rc"
-        lctest_time="NA"
-        lhref=""
-      else
-        lsummary="ctests didn't run, unknown failure"
-        lctest_time="NA"
-        lhref=""
-      fi
-    fi
-  else
-    lsummary=`grep 'tests .*passed' ${CTEST_LOGFILE}`
-    if [ -z "$lsummary" ]; then
-      lsummary="ctest run didn't complete"
-    fi
-  fi
-  log "run_ctests() summary:$lsummary href:$lhref ctest_time:$lctest_time"
-  eval "$6=\"$lsummary\""
-  eval "$7=\"$lctest_time\""
-  eval "$8=\"$lhref\""
+#    check_pbs_return $make_job
+#    local make_rc=$?
+#    if [ "$make_rc" -ne 0 ]; then
+#      lsummary="make job failed return code $make_rc"
+#      lctest_time="NA"
+#      lhref=""
+#    else
+#      check_pbs_return $ctest_job
+#      local ctest_rc=$?
+#      if [ "$ctest_rc" -ne 0 ]; then
+#        lsummary="ctest job failed return code $ctest_rc"
+#        lctest_time="NA"
+#        lhref=""
+#      else
+#        lsummary="ctests didn't run, unknown failure"
+#        lctest_time="NA"
+#        lhref=""
+#      fi
+#    fi
+#  else
+#    lsummary=`grep 'tests .*passed' ${CTEST_LOGFILE}`
+#    if [ -z "$lsummary" ]; then
+#      lsummary="ctest run didn't complete"
+#    fi
+#  fi
+  eval "$6=\"$lmpas_summary\""
+  eval "$7=\"$lmpas_ctest_time\""
+  eval "$8=\"$lmpas_href\""
 }
 
 # build the html file and copy it to the web server
@@ -381,14 +440,25 @@ make_html()
     mv ${resultsfile} ctest.results.log.${timestamp}
     log "scp ./ctest.results.log.${timestamp} ${dest}/results/"
     scp ./ctest.results.log.${timestamp} ${dest}/results/ || { log "scp ctest_results failed"; }
-    log "scp ${sha_file} ${dest}/shas/"
-    scp ${sha_file} ${dest}/shas/ || { log "scp $sha_file failed"; }
     mv ctest.results.log.${timestamp} ctest.results.log.old
   else
     log "${CTEST_LOGFILE} doesn't exist"
-    log "scp ${sha_file} ${dest}/shas"
-    scp ${sha_file} ${dest}/shas || { log "scp $sha_file failed"; }
   fi
+  if [ -f ${CTEST_IODA_LOGFILE} ]; then
+    local iodaresultsfile="ctest-ioda.results.tmp"
+    echo ${timestamp} > ${iodaresultsfile}
+    echo >> ${iodaresultsfile}
+    egrep -A 20 'Test|Start' ${CTEST_IODA_LOGFILE} >> ./${iodaresultsfile}
+    mv ${iodaresultsfile} ctest-ioda.results.log.${timestamp}
+    log "scp ./ctest-ioda.results.log.${timestamp} ${dest}/results/"
+    scp ./ctest-ioda.results.log.${timestamp} ${dest}/results/ || { log "scp ctest_results failed"; }
+    mv ctest-ioda.results.log.${timestamp} ctest-ioda.results.log.old
+  else
+    log "${CTEST_IODA_LOGFILE} doesn't exist"
+  fi
+  log "scp ${sha_file} ${dest}/shas"
+  scp ${sha_file} ${dest}/shas || { log "scp $sha_file failed"; }
+
   # clean up old index files by putting them in a tar file
   log "ssh ${host} cd ${dest_dir} && tar --remove-files -rf ${index_tarfile} index.2"
   ssh ${host} "cd ${dest_dir} && tar --remove-files -rf ${index_tarfile} index.2*"
@@ -491,6 +561,7 @@ build_and_test()
 }
 
 CTEST_LOGFILE="ctest.pbs.sh.log"
+CTEST_IODA_LOGFILE="ctest-ioda.pbs.sh.log"
 QUEUE=$MAIN_Q
 BUNDLE_DIR=""
 BUILD_DIR_ROOT=""
