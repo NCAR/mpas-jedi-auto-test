@@ -243,7 +243,7 @@ EOF
 }
 
 # check the results of a test
-check_ctest_results()
+get_ctest_summary()
 {
   local logfile=$1
   local make_job=$2
@@ -252,10 +252,10 @@ check_ctest_results()
 
   # output params
   local lsummary # $5
-  local lctest_time # $6
-  local lhref # $7
 
-  log "check_ctest_results() logfile=$logfile test_name=$test_name"
+  local retval=0
+
+  log "get_ctest_summary() logfile=$logfile test_name=$test_name"
 
   # if there's no log file, the make was probably aborted, so ctest didn't run
   if [ ! -f ${logfile} ]; then
@@ -264,32 +264,26 @@ check_ctest_results()
     local make_rc=$?
     if [ "$make_rc" -ne 0 ]; then
       lsummary="make job failed return code $make_rc"
-      lctest_time="NA"
-      lhref=""
     else
       check_pbs_return $ctest_job
       local ctest_rc=$?
       if [ "$ctest_rc" -ne 0 ]; then
-        lsummary="$test_name job failed return code $ctest_rc"
-        lctest_time="NA"
-        lhref=""
+        lsummary="$test_name failed $ctest_rc"
       else
-        lsummary="$test_name didn't run, unknown failure"
-        lctest_time="NA"
-        lhref=""
+        lsummary="$test_name didn't run"
       fi
     fi
+    retval=1
   else
     lsummary="$test_name "
     lsummary+=`grep 'tests .*passed' ${logfile} | awk '{printf "%s %s\n", $1, $3}'`
-    if [ -z "$lsummary" ]; then
-      lsummary="$test_name run didn't complete"
-    fi
+    #if [ -z "$lsummary" ]; then
+    #  lsummary="$test_name run didn't complete"
+    #fi
   fi
 
   eval "$5=\"$lsummary\""
-  eval "$6=\"$lctest_time\""
-  eval "$7=\"$lhref\""
+  return $retval
 }
 
 # run the ctests
@@ -303,9 +297,15 @@ run_ctests()
   local build_type=$5
 
   # output params
-  local lmpas_summary="" # 6th param
+  local html_results=""  # 6th param
   local lmpas_ctest_time=""  # 7th param
-  local lmpas_href="href=\"./results/ctest.results.log.${timestamp}\"" # 8th param
+  local lioda_ctest_time=""  # 8th param
+
+  # local parms
+  local lmpas_summary=""
+  local lmpas_href="href=\"./results/ctest.results.log.${timestamp}\""
+  local lioda_summary=""
+  local lioda_href="href=\"./results/ctest-ioda.results.log.${timestamp}\""
 
   # create script to run ctest and run it, holding it until the make job finishes
   mv ./${CTEST_LOGFILE} ./${CTEST_LOGFILE}.old
@@ -328,46 +328,28 @@ run_ctests()
   # get the runtimes for the PBS ctest job
   lmpas_ctest_time=$(qstat -xf ${ctest_job} | grep used.walltime | awk '{print $3}')
 
-  check_ctest_results $CTEST_LOGFILE $make_job $ctest_job "mpas-ctest" lmpas_summary lmpas_ctest_time lmpas_href
-  log "run_ctests() summary:$lmpas_summary href:$lmpas_href ctest_time:$lmpas_ctest_time"
+  get_ctest_summary $CTEST_LOGFILE $make_job $ctest_job "mpas-ctest" lmpas_summary
+  retcode=$?
+  log "run_ctests() summary:$lmpas_summary href:$lmpas_href ctest_time:$lmpas_ctest_time return:$retcode"
+  if [ "$retcode" -ne 0 ]
+  then
+    lmpas_href=""
+    lmpas_ctest_time="NA"
+  fi
 
-  local lioda_summary=""
-  local lioda_ctest_time=""
-  local lioda_href="href=\"./results/ctest-ioda.results.log.${timestamp}\"" # 8th param
-  check_ctest_results $CTEST_IODA_LOGFILE $make_job $ctest_ioda_job "ioda-ctest" lioda_summary lioda_ctest_time lioda_href
-  log "run_ctests() iodasummary:$lioda_summary iodahref:$lioda_href iodactest_time:$lioda_ctest_time"
+  get_ctest_summary $CTEST_IODA_LOGFILE $make_job $ctest_ioda_job "ioda-ctest" lioda_summary
+  retcode=$?
+  log "run_ctests() iodasummary:$lioda_summary iodahref:$lioda_href iodactest_time:$lioda_ctest_time return:$retcode"
+  if [ "$retcode" -ne 0 ]
+  then
+    lioda_href=""
+    lioda_ctest_time="NA"
+  fi
+  html_results="<td><a ${lmpas_href}>${lmpas_summary}</a> -- <a ${lioda_href}>${lioda_summary}</a> </td>"
 
-  # if there's no log file, the make was probably aborted, so ctest didn't run
-#  if [ ! -f ${CTEST_LOGFILE} ]; then
-    # check the make job for success
-#    check_pbs_return $make_job
-#    local make_rc=$?
-#    if [ "$make_rc" -ne 0 ]; then
-#      lsummary="make job failed return code $make_rc"
-#      lctest_time="NA"
-#      lhref=""
-#    else
-#      check_pbs_return $ctest_job
-#      local ctest_rc=$?
-#      if [ "$ctest_rc" -ne 0 ]; then
-#        lsummary="ctest job failed return code $ctest_rc"
-#        lctest_time="NA"
-#        lhref=""
-#      else
-#        lsummary="ctests didn't run, unknown failure"
-#        lctest_time="NA"
-#        lhref=""
-#      fi
-#    fi
-#  else
-#    lsummary=`grep 'tests .*passed' ${CTEST_LOGFILE}`
-#    if [ -z "$lsummary" ]; then
-#      lsummary="ctest run didn't complete"
-#    fi
-#  fi
-  eval "$6=\"$lmpas_summary\""
+  eval "$6=\"$html_results\""
   eval "$7=\"$lmpas_ctest_time\""
-  eval "$8=\"$lmpas_href\""
+  eval "$8=\"$lioda_ctest_time\""
 }
 
 # build the html file and copy it to the web server
@@ -377,16 +359,16 @@ make_html()
   local make_job=$2
   local cc=$3
   local timestamp=$4
-  local ctest_time=$5
-  local summary=$6
-  local href=$7
+  local mpas_ctest_time=$5
+  local ioda_ctest_time=$6
+  local summary=$7
   local sha_file=$8
   local build_type=$9
   #local dest_dir="/web/htdocs/projects/mpas-jedi/weekly-ctests"
 
-  log "make_html() dest_dir: $dest_dir make_job=$make_job ctest_time=$ctest_time"
-  log "            cc=$cc timestamp=$timestamp href=$href summary=$summary"
-  log "            chref=$href sha_file=$sha_file sha_file:t=${sha_file##*/}"
+  log "make_html() dest_dir: $dest_dir make_job=$make_job mpas_ctest_time=$mpas_ctest_time"
+  log "            ioda_ctest_time=$ioda_ctest_time cc=$cc timestamp=$timestamp summary=$summary"
+  log "            sha_file=$sha_file sha_file:t=${sha_file##*/}"
 
   local bld="Release"
   if [ "$build_type" == "Debug" ]; then
@@ -415,8 +397,8 @@ make_html()
   local make_time=$(qstat -xf ${make_job} | grep used.walltime | awk '{print $3}')
 
   # prepend current results to the table, then add the old entries
-  local stats="<a href=./shas/${sha_file##*/}> Q:${QUEUE%"@desched1"} make:${make_time} ctest:${ctest_time}</a>"
-  echo "<tr><td>${timestamp}</td> <td><a ${href}>${summary}</a></td> <td>${spack_stack}</td> <td>${cc}</td> <td>${bld} ${compiler} ${mpich}</td> <td>${stats}</td> " > body.html
+  local stats="<a href=./shas/${sha_file##*/}> Q:${QUEUE%"@desched1"} make:${make_time} mpas_ctest:${mpas_ctest_time} ioda_ctest:${ioda_ctest_time} </a>"
+  echo "<tr><td>${timestamp}</td> ${summary} <td>${spack_stack}</td> <td>${cc}</td> <td>${bld} ${compiler} ${mpich}</td> <td>${stats}</td> " > body.html
   if [ -f ${HTML_BODY_FILE} ]; then
     cat ${HTML_BODY_FILE} >> body.html
   fi
@@ -519,14 +501,15 @@ build_and_test()
   ${scripts}/run_make.bundle.sh -A ${ACCOUNT} -q ${QUEUE} -p economy -x make -c ${cc} -N "cron-${cc}-make-${build_type}" ${NTHREADS} -m -n
   local make_job=$(qsub make.pbs.sh) || { log "cannot connect to Derecho PBS"; exit 1; }
   log "${cc} make: ${make_job}"
-  local ctest_time=""
+  local mpas_ctest_time="NA"
+  local ioda_ctest_time="NA"
   local summary=""
   local href=""
 
   # only run ctest for double precision builds
   if [ "${dbl_p}" == "ON" ]; then
-    run_ctests $scripts $cc $make_job $timestamp $build_type summary ctest_time href  
-    log "build_and_test() summary:$summary href:$href ctest_time:$ctest_time"
+    run_ctests $scripts $cc $make_job $timestamp $build_type summary mpas_ctest_time ioda_ctest_time
+    log "build_and_test() summary:$summary href:$href mpas_ctest_time:$mpas_ctest_time ioda_ctest_time:$ioda_ctest_time"
   else
     # wait for the make job
     # wait for the make job to show up in the queue, check every 5 seconds
@@ -535,7 +518,6 @@ build_and_test()
     # wait for the make job to finish, check every 60 seconds
     queue_wait ${make_job} 0 60
     summary="Single precision build - no ctests run"
-    ctest_time="NA"
 
     # make a symlink to the latest single precision build on success
     check_pbs_return $make_job
@@ -549,15 +531,14 @@ build_and_test()
       ln -s $(pwd) $latest_dir
     else
       summary="single precision make job failed return code $make_rc"
-      ctest_time="NA"
     fi
   fi
 
   #
   # create and copy the docs to the web page directory
   #
-  log "calling make_html() dir: $html_dir make_job $make_job ctest_time $ctest_time cc $cc timestamp $timestamp href $href summary $summary"
-  make_html $html_dir $make_job $cc $timestamp $ctest_time "$summary" $href  $sha_file $build_type
+  log "calling make_html() dir: $html_dir make_job $make_job mpas_ctest_time $mpas_ctest_time ioda_ctest_time $ioda_ctest_time cc $cc timestamp $timestamp summary $summary"
+  make_html $html_dir $make_job $cc $timestamp $mpas_ctest_time $ioda_ctest_time "$summary" $sha_file $build_type
 }
 
 CTEST_LOGFILE="ctest.pbs.sh.log"
