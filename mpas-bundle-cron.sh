@@ -323,10 +323,12 @@ run_ctests()
   queue_wait ${ctest_job} 1 5
 
   # wait for the ctest job to finish, check every 60 seconds
+  # assume the mpas-ctest job will take longer than the ioda ctest job.
   queue_wait ${ctest_job} 0 60
 
   # get the runtimes for the PBS ctest job
   lmpas_ctest_time=$(qstat -xf ${ctest_job} | grep used.walltime | awk '{print $3}')
+  lioda_ctest_time=$(qstat -xf ${ctest_ioda_job} | grep used.walltime | awk '{print $3}')
 
   get_ctest_summary $CTEST_LOGFILE $make_job $ctest_job "mpas-ctest" lmpas_summary
   retcode=$?
