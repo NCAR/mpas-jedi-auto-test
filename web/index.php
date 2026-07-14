@@ -28,7 +28,7 @@ function build_date_table()
 {
   // set the path to the images
   $web_path = "/projects/mpas-jedi/weekly-cycling/cylc_graphs";
-  $img_path = "/web/htdocs$web_path";
+  $img_path = "/net/htdocs$web_path";
 
   // grab the directories
   $img_dirs = array_diff(scandir($img_path,1),array(".",".."));

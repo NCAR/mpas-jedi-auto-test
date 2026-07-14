@@ -64,7 +64,7 @@ usage()
   log "    -o <output_dir> where the comparison graphs should go"
   log "    -m <mmm_webserver> the mmm web server content machine, e.g. whitedwarf.mmm.ucar.edu"
   log "       if not provided the graphs won't get copied to the webserver"
-  log "    -c <cylc_graph_dir> where the cylc output graphs go on the mmm webserver, e.g. /web/htdocs/<graph-dir-path>"
+  log "    -c <cylc_graph_dir> where the cylc output graphs go on the mmm webserver, e.g. /net/htdocs/<graph-dir-path>"
   log "       if not provided the graphs won't get copied to the webserver"
   log "    -l <log_dir> where logs and data should be written, default $LOGDIR"
   log "    -e <email_addrs> comma separated list of email addrs to receive large variance alerts"

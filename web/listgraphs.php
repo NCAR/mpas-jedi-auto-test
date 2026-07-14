@@ -14,7 +14,7 @@ $hdrs = explode(",", $tbl_hdrs);
 
 function show_graph_subdirs($baseline, $path, $date, $suffix, $column1)
 {
-  $file_prefix = "/web/htdocs";
+  $file_prefix = "/net/htdocs";
   $headers = [];
   $graphs = array_diff(scandir("$file_prefix/$path"), array(".", "..", "data"));
   foreach ($graphs as &$file) {

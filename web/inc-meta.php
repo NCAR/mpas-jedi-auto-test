@@ -9,4 +9,4 @@
 <link href="/styles/um/css/cookie-consent.css" rel="stylesheet" />
 
 
-<?php require "/web/htdocs/styles/unity/js/google-analytics.html"; ?>
+<?php require "/net/htdocs/styles/unity/js/google-analytics.html"; ?>
