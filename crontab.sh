@@ -39,7 +39,7 @@ derecho=derecho.hpc.ucar.edu
 # mmm web server
 webserver=eris.mmm.ucar.edu
 # destination for graphs
-web_graphs_dir=/web/htdocs/projects/mpas-jedi/weekly-cycling/cylc_graphs
+web_graphs_dir=/net/htdocs/projects/mpas-jedi/weekly-cycling/cylc_graphs
 
 # start at 11:05 PM and clean up log files
 05 23 * * 5 ssh $derecho "cd $log_dir && (gunzip mpas-bundle-cron.log.tar.gz ; tar --remove-files -uf mpas-bundle-cron.log.tar mpas-bundle-cron.log.2* ; tar --remove-files -uf mpas-bundle-cron.log.tar git_shas* ; gzip mpas-bundle-cron.log.tar)"

@@ -33,7 +33,7 @@ init_logs()
 }
 
 # where to copy html output files on mmm web pages server
-html_dir="/web/htdocs/projects/mpas-jedi/weekly-ctests"
+html_dir="/net/htdocs/projects/mpas-jedi/weekly-ctests"
 # available queues to use
 # normal cpu hours are charged
 MAIN_Q="main@desched1"
@@ -366,7 +366,7 @@ make_html()
   local summary=$7
   local sha_file=$8
   local build_type=$9
-  #local dest_dir="/web/htdocs/projects/mpas-jedi/weekly-ctests"
+  #local dest_dir="/net/htdocs/projects/mpas-jedi/weekly-ctests"
 
   log "make_html() dest_dir: $dest_dir make_job=$make_job mpas_ctest_time=$mpas_ctest_time"
   log "            ioda_ctest_time=$ioda_ctest_time cc=$cc timestamp=$timestamp summary=$summary"
