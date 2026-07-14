@@ -519,7 +519,7 @@ build_and_test()
 
     # wait for the make job to finish, check every 60 seconds
     queue_wait ${make_job} 0 60
-    summary="Single precision build - no ctests run"
+    summary="<td>Single precision build - no ctests run</td>"
 
     # make a symlink to the latest single precision build on success
     check_pbs_return $make_job
@@ -532,7 +532,7 @@ build_and_test()
       log "ln -s $(pwd) $latest_dir"
       ln -s $(pwd) $latest_dir
     else
-      summary="single precision make job failed return code $make_rc"
+      summary="<td>Single precision make job failed return code $make_rc</td>"
     fi
   fi
 
