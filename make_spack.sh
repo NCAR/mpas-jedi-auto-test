@@ -10,9 +10,10 @@ declare -r oneapi="oneapi-2025.3.1"
 LOGFILE=""
 init_log()
 {
-  local cron_logdir="$1"
-  mkdir -p ${cron_logdir} || exit 1
-  LOGFILE="${cron_logdir}/make_spack.log.${timestamp}"
+  local logdir="$1"
+  local compiler="$2"
+  mkdir -p ${logdir} || exit 1
+  LOGFILE="${logdir}/log.${compiler}.${timestamp}"
   touch $LOGFILE
   echo "LOGFILE:$LOGFILE"
 }
@@ -36,11 +37,13 @@ log_cmd()
 
 usage()
 {
-  args="-d <build_dir> [-c <compiler>] [-l <log_file>] [-h]"
+  args="-d <build_dir> [-c <compiler>] [-l <log_file>] [-n] [-h]"
   log "usage:"
   log "  make_spack.sh ${args}"
   log "    -d <build_dir> is where the spack-stack repo will be cloned to"
   log "    -c <compiler> is one of $gcc or $oneapi, default is $gcc"
+  log "    -n means don't run git, assume the repo is cloned and up to date"
+  log "    -h prints help and exits"
   exit
 }
 
@@ -85,14 +88,16 @@ main()
   local template="unified-dev"
 
   local log_dir=""
+  local no_git=""
   local help=""
 
-  while getopts c:d:l:h flag
+  while getopts c:d:l:nh flag
   do
     case "${flag}" in
       c) compiler="${OPTARG}";;
       d) repo_dir="${OPTARG}";;
       l) log_dir="${OPTARG}";;
+      n) no_git="true";;
       h) help="help";;
     esac
   done
@@ -111,7 +116,7 @@ main()
   if [ "$log_dir" == "" ]; then
     log_dir=$repo_dir
   fi
-  init_log $log_dir
+  init_log $log_dir $compiler
   log "commandline: $0 $*"
   local hname="$(hostname)"
   log "running on $hname in $repo_dir"
@@ -119,7 +124,10 @@ main()
 
   # go to the build directory and clone/update the repository
   cd $repo_dir
-  git_clone_or_fetch
+
+  if [ "$no_git" == "" ]; then
+    git_clone_or_fetch
+  fi
 
   cd ${repo_dir}/${repo}
   log "sourcing setup.sh"

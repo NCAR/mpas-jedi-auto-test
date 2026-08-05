@@ -41,6 +41,23 @@ webserver=eris.mmm.ucar.edu
 # destination for graphs
 web_graphs_dir=/net/htdocs/projects/mpas-jedi/weekly-cycling/cylc_graphs
 
+#
+# spack stack
+#
+# the spack-stack build directory
+ss_build_dir=/glade/derecho/scratch/jwittig/repos-s/spack-stack-cron
+# the compilers to use
+ss_gcc=gcc-13.3.1
+ss_oneapi=oneapi-2025.3.1
+# the spack stack build script
+ss_build_script=make_spack.sh
+# build both flavors on Saturdays at 1 and 2 am
+# these must be run on derecho; they take 6 to 8 hours
+#05 01 * * 6 ssh derecho "$script_dir/$ss_build_script -d $ss_build_dir -c $ss_gcc"
+# don't run git (-n) for the second build, use the repo set up by the first build
+#05 02 * * 6 ssh derecho "$script_dir/$ss_build_script -d $ss_build_dir -c $ss_oneapi -n"
+
+
 # start at 11:05 PM and clean up log files
 05 23 * * 5 ssh $derecho "cd $log_dir && (gunzip mpas-bundle-cron.log.tar.gz ; tar --remove-files -uf mpas-bundle-cron.log.tar mpas-bundle-cron.log.2* ; tar --remove-files -uf mpas-bundle-cron.log.tar git_shas* ; gzip mpas-bundle-cron.log.tar)"
 
