@@ -37,12 +37,14 @@ log_cmd()
 
 usage()
 {
-  args="-d <build_dir> [-c <compiler>] [-l <log_file>] [-n] [-h]"
+  args="-d <build_dir> [-c <compiler>] [-g] [-i] [-l <log_dir>] [-h]"
   log "usage:"
   log "  make_spack.sh ${args}"
-  log "    -d <build_dir> is where the spack-stack repo will be cloned to"
+  log "    -d <build_dir> is where the spack-stack repo is (or will be cloned to)"
   log "    -c <compiler> is one of $gcc or $oneapi, default is $gcc"
-  log "    -n means don't run git, assume the repo is cloned and up to date"
+  log "    -g runs git, otherwise assume the repo is cloned and up to date"
+  log "    -i only runs install. skips creating the env and concretizing"
+  log "    -l log_dir where to put log files, default is <build_dir>"
   log "    -h prints help and exits"
   exit
 }
@@ -77,6 +79,7 @@ main()
 {
 
   #local repo_dir="/glade/derecho/scratch/jwittig/repos-s/spack-stack-dev"
+  declare -r script_repo_dir="/glade/work/jwittig/repos1/mpas-jedi-auto-test"
   local repo_dir=""
   local repo="spack-stack"
   local repo_url="https://github.com/JCSDA/spack-stack.git"
@@ -88,16 +91,18 @@ main()
   local template="unified-dev"
 
   local log_dir=""
-  local no_git=""
+  local git=""
+  local install_only=""
   local help=""
 
-  while getopts c:d:l:nh flag
+  while getopts c:d:l:gih flag
   do
     case "${flag}" in
       c) compiler="${OPTARG}";;
       d) repo_dir="${OPTARG}";;
       l) log_dir="${OPTARG}";;
-      n) no_git="true";;
+      g) git="true";;
+      i) install_only="true";;
       h) help="help";;
     esac
   done
@@ -125,7 +130,7 @@ main()
   # go to the build directory and clone/update the repository
   cd $repo_dir
 
-  if [ "$no_git" == "" ]; then
+  if [ "$git" != "" ]; then
     git_clone_or_fetch
   fi
 
@@ -135,25 +140,35 @@ main()
 
   # create a new env
   local name="ue-${compiler}"
-  if [ -d "envs/${name}" ]; then
-    log "mv envs/${name} envs/${name}.${timestamp}"
-    mv envs/${name} envs/${name}.${timestamp}
-  fi
+  if [ "$install_only" == "" ]; then
+    if [ -d "envs/${name}" ]; then
+      log "mv envs/${name} envs/${name}.${timestamp}"
+      mv envs/${name} envs/${name}.${timestamp}
+    fi
 
-  local c_log="log.create-${compiler}"
-  log "spack stack create env --site=$site --template=$template --compiler=$compiler --name=$name ..."
-  spack stack create env --site=$site --template=$template --compiler=$compiler --name=$name &> $c_log
+    local c_log="log.create-${compiler}"
+    log "spack stack create env --site=$site --template=$template --compiler=$compiler --name=$name ..."
+    spack stack create env --site=$site --template=$template --compiler=$compiler --name=$name &> $c_log
+  else
+    log "install_only=$install_only, skipping create env"
+  fi
 
   cd ./envs/$name
   log "running in $(pwd)"
   log "spack env activate . "
   spack env activate . 
 
-  concretize
+  if [ "$install_only" == "" ]; then
+    concretize
+  else
+    log "install_only=$install_only, skipping concretize"
+  fi
 
   # run install in the background redirecting output to a file. It takes hours to run on derecho
-  log "spack install &> log.install &"
-  spack install &> log.install &
+  #log "spack install &> log.install &"
+  #spack install &> log.install &
+  log "running qsub ${script_repo}/spack-install.pbs.sh"
+  qsub ${script_repo_dir}/spack-install.pbs.sh
 
     # 7. spack module lmod refresh 2>&1 tee log.mod-refresh
     # 8. spack stack setup-meta-modules 2>&1 | tee log.meta-modules

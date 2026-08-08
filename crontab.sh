@@ -53,9 +53,9 @@ ss_oneapi=oneapi-2025.3.1
 ss_build_script=make_spack.sh
 # build both flavors on Saturdays at 1 and 2 am
 # these must be run on derecho; they take 6 to 8 hours
-#05 01 * * 6 ssh derecho "$script_dir/$ss_build_script -d $ss_build_dir -c $ss_gcc"
+#05 01 * * 6 ssh derecho "$script_dir/$ss_build_script -d $ss_build_dir -c $ss_gcc -g"
 # don't run git (-n) for the second build, use the repo set up by the first build
-#05 02 * * 6 ssh derecho "$script_dir/$ss_build_script -d $ss_build_dir -c $ss_oneapi -n"
+#05 02 * * 6 ssh derecho "$script_dir/$ss_build_script -d $ss_build_dir -c $ss_oneapi"
 
 
 # start at 11:05 PM and clean up log files
