@@ -167,7 +167,7 @@ main()
   # run install in the background redirecting output to a file. It takes hours to run on derecho
   #log "spack install &> log.install &"
   #spack install &> log.install &
-  log "running qsub ${script_repo}/spack-install.pbs.sh"
+  log "running qsub ${script_repo_dir}/spack-install.pbs.sh"
   qsub ${script_repo_dir}/spack-install.pbs.sh
 
     # 7. spack module lmod refresh 2>&1 tee log.mod-refresh
