@@ -72,22 +72,22 @@ bld_suffix=date +%y_%0m_%0d
 # make a double precision build of mpas-bundle and run ctest
 # the build script won't do anything if there have been no changes to the
 # modules used to create mpas-bundle (unless the '-f' parameter is provided).
-05 00 * * 1-5 ssh $derecho "echo $(${bld_suffix}) ${bundle_dir} 'make 2p'  >> $log_dir/cron.log && cd $bundle_dir && git fetch -p >> $log_dir/cron.log ; git status >> $log_dir/cron.log ; git pull >> $log_dir/cron.log" ; $script_dir/$build_script -d $bundle_dir -b $builds_dir -q develop@desched1 -c gnu -p 2 -a nmmm0015
+05 00 * * 1-5 ssh $derecho "echo $(${bld_suffix}) ${bundle_dir} 'make 2p'  >> $log_dir/cron.log && cd $bundle_dir && git fetch -p >> $log_dir/cron.log ; git status >> $log_dir/cron.log ; git pull >> $log_dir/cron.log" ; ssh $derecho "$script_dir/$build_script -d $bundle_dir -b $builds_dir -q develop@desched1 -c gnu -p 2 -a nmmm0015"
 
 # start at 12:05 AM on Sat 
 # always build and run ctests, even if no source change from previous run (-f)
-05 00 * * 6 $script_dir/$build_script -d $bundle_dir -b $builds_dir -q develop@desched1 -c gnu -p 2 -f -a nmmm0015
-05 02 * * 6 $script_dir/$build_script -d $bundle_dir -b $builds_dir -q develop@desched1 -c gnu -p 2 -f -a nmmm0015 -t RelWithDebInfo
-05 03 * * 6 $script_dir/$build_script -d $bundle_dir -b $builds_dir -q develop@desched1 -c gnu -p 2 -f -a nmmm0015 -t Debug
+05 00 * * 6 ssh $derecho "$script_dir/$build_script -d $bundle_dir -b $builds_dir -q develop@desched1 -c gnu -p 2 -f -a nmmm0015"
+05 02 * * 6 ssh $derecho "$script_dir/$build_script -d $bundle_dir -b $builds_dir -q develop@desched1 -c gnu -p 2 -f -a nmmm0015 -t RelWithDebInfo"
+05 03 * * 6 ssh $derecho "$script_dir/$build_script -d $bundle_dir -b $builds_dir -q develop@desched1 -c gnu -p 2 -f -a nmmm0015 -t Debug"
 
 # start at 1:05 AM on Sat 
 # always build, even if no source change from previous run (-f)
 # single precision (-p 1), to be used for cylc experiment.
 # use the date as part of the build directory name, so each week's build is unique.
-05 01 * * 6 $script_dir/$build_script -d $bundle_dir -b $builds_dir -q develop@desched1 -c gnu -p 1 -f -l $builds_dir/$build_script.lock -x $(${bld_suffix}) -a nmmm0015
+05 01 * * 6 ssh $derecho "$script_dir/$build_script -d $bundle_dir -b $builds_dir -q develop@desched1 -c gnu -p 1 -f -l $builds_dir/$build_script.lock -x $(${bld_suffix}) -a nmmm0015"
 
 # build gpu enabled MPAS-Model
-#20 12 * * 1 $script_dir/$build_script -d $bundle_dir -b $builds_dir -q develop@desched1 -c nvhpc -p 1 -f -l $builds_dir/$build_script.lock -x $(${bld_suffix}) -a nmmm0015
+#20 12 * * 1 ssh $derecho "$script_dir/$build_script -d $bundle_dir -b $builds_dir -q develop@desched1 -c nvhpc -p 1 -f -l $builds_dir/$build_script.lock -x $(${bld_suffix}) -a nmmm0015"
 
 # at 12:05 am on Sun update the develop branch of  MPAS-Workflow repo and run the workflow
 suffix=$(date +%F)

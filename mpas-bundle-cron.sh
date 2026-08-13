@@ -26,8 +26,9 @@ LOGFILE=""
 init_logs()
 {
   local cron_logdir="$1"
+  local timesuffix="$(date +%F-%H)"
   mkdir -p ${cron_logdir} || exit 1
-  LOGFILE="${cron_logdir}/mpas-bundle-cron.log.${timestamp}"
+  LOGFILE="${cron_logdir}/mpas-bundle-cron.log.${timesuffix}"
   touch $LOGFILE
   HTML_BODY_FILE="${cron_logdir}/body.html"
 }
@@ -65,7 +66,8 @@ usage()
 log()
 {
   if [ -f "${LOGFILE}" ]; then
-    echo -e "$1" | tee -a ${LOGFILE}
+    ts=$(date +%H:%M)
+    echo -e "$ts $1" | tee -a ${LOGFILE}
   else
     echo -e "$1"
   fi
@@ -158,87 +160,63 @@ print_footer()
   echo "</table> </body> </html>" >> ${outfile}
 }
 
-# create a script which will execute cmake and run it on derecho
 run_cmake()
 {
-  cmake_script="${LOG_DIR}/run_cmake.sh"
+  local build_dir=$1
+  local bundle_dir=$2
+  local cc=$3
+  local precision=$4
+  local build_type=$5
 
-cat > $cmake_script << CMAKE_EOF
-#!/bin/bash
-#
-cd $1 && source $2/env-setup/$3-derecho.sh && source $2/env-setup/ioda-modules.list && if [ -f Makefile ]; then echo "make update" && make update |& tee make.update.log; fi && cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DBUNDLE_SKIP_RTTOV=ON -DMPAS_DOUBLE_PRECISION=$4 -DBUILD_IODA_CONVERTERS=ON -DCMAKE_BUILD_TYPE=$5 ctest_update  $2;
-CMAKE_EOF
-
-  chmod 755 ${cmake_script}
-  log "ssh derecho.hpc.ucar.edu ${cmake_script} |& tee ${cmake_script}.log"
-  ssh derecho.hpc.ucar.edu ${cmake_script} |& tee ${cmake_script}.log
+  cd $build_dir 
+  source ${bundle_dir}/env-setup/${cc}-derecho.sh 
+  source ${bundle_dir}/env-setup/ioda-modules.list 
+  if [ -f Makefile ]; then
+    echo "make update" 
+    make update |& tee make.update.log;
+  fi 
+  cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DBUNDLE_SKIP_RTTOV=ON -DMPAS_DOUBLE_PRECISION=${precision} -DBUILD_IODA_CONVERTERS=ON -DCMAKE_BUILD_TYPE=${build_type} ctest_update  ${bundle_dir};
 }
 
-# create a script which will check for changes in git repositories, and run it on derecho
+# check for changes in git repositories
 check_git_changes()
 {
-  check_changes_log=$2
+  local bundle_dir=$1
+  local check_changes_log=$2
+  local ret_code=0
 
-  check_script="${LOG_DIR}/check_changes.sh"
-  update_file="${LOG_DIR}/files_changed.lock"
-  rm ${update_file}
-
-cat > $check_script << EOF
-#!/bin/bash -l
-#
-# check to see if any source files changed in git.
-# this is meant to be called from automated scripts.
-
-# touch $update_file if sources changed
-check_for_changes() {
   # traverse subdirectories
-  dirs=\$(ls -d */)
-  for subdir in \$dirs;
+  cd $bundle_dir
+  dirs=$(ls -d */)
+  for subdir in $dirs;
   do
 
     # skip directories which don't have a git repo
-    if [ ! -d "\${subdir}/.git" ]; then
+    if [ ! -d "${subdir}/.git" ]; then
       continue
     fi
 
-    echo \$subdir
-    cd "\$subdir"
+    echo "$subdir " &>> $check_changes_log
+    cd "$subdir"
 
     # get latest code and see if it has changed
     git fetch >& /dev/null
-    local branch=\$(git rev-parse --abbrev-ref HEAD)
-    local remote=\$(git remote get-url origin)
-    local local_commit=\$(git rev-parse --short HEAD)
-    local remote_commit=\$(git rev-parse --short origin/\${branch})
-    if [ "\$local_commit" != "\$remote_commit" ]; then
-      echo "updating \${remote} in branch \${branch} to sha \$remote_commit." &>> $check_changes_log
+    local branch=$(git rev-parse --abbrev-ref HEAD)
+    local remote=$(git remote get-url origin)
+    local local_commit=$(git rev-parse --short HEAD)
+    local remote_commit=$(git rev-parse --short origin/${branch})
+    if [ "$local_commit" != "$remote_commit" ]; then
+      echo "updating ${remote} in branch ${branch} to sha $remote_commit." &>> $check_changes_log
       git pull &>> $check_changes_log
-      echo "\${remote} in branch \${branch} has been updated to sha \$remote_commit."
-      touch $update_file
+      echo "${remote} in branch ${branch} has been updated to sha $remote_commit." &>> $check_changes_log
+      ret_code=1
     else
-      echo "No updates found for \${remote} in branch \${branch}, sha \$local_commit."
+      echo "No updates found for ${remote} in branch ${branch}, sha $local_commit." &>> $check_changes_log
     fi
 
     cd ..
   done
-}
 
-echo "work_dir $1"
-echo "sync_file $update_file"
-cd $1
-check_for_changes
-EOF
-
-  # run a script on derecho, it needs git which is not on the cron server
-  chmod 755 ${check_script}
-  log "ssh derecho.hpc.ucar.edu ${check_script} ${BUNDLE_DIR} ${update_file} |& tee ${check_changes_log}"
-  ssh derecho.hpc.ucar.edu "${check_script} |& tee ${check_changes_log}"
-  local ret_code=0
-  if [ -f ${update_file} ]; then
-    log "update file $update_file exists"
-    ret_code=1
-  fi
-  rm $update_file
   return $ret_code
 }
 
@@ -543,135 +521,144 @@ build_and_test()
   make_html $html_dir $make_job $cc $timestamp $mpas_ctest_time $ioda_ctest_time "$summary" $sha_file $build_type
 }
 
-CTEST_LOGFILE="ctest.pbs.sh.log"
-CTEST_IODA_LOGFILE="ctest-ioda.pbs.sh.log"
-QUEUE=$MAIN_Q
-BUNDLE_DIR=""
-BUILD_DIR_ROOT=""
-tools=""
-precision="2"
-force_build=0
-LOG_DIR="${HOME}/my_cron_logs/"
-help=""
-run_cmake="yes"
-suffix=""
-ACCOUNT="nmmm0015"
-build_type="Release"
+main()
+{
+    CTEST_LOGFILE="ctest.pbs.sh.log"
+    CTEST_IODA_LOGFILE="ctest-ioda.pbs.sh.log"
+    QUEUE=$MAIN_Q
+    BUNDLE_DIR=""
+    BUILD_DIR_ROOT=""
+    tools=""
+    precision="2"
+    force_build=0
+    LOG_DIR="${HOME}/my_cron_logs/"
+    help=""
+    run_cmake="yes"
+    suffix=""
+    ACCOUNT="nmmm0015"
+    build_type="Release"
 
-# get comamnd line args
-while getopts d:b:q:a:p:t:c:l:o:x:fhn flag
-do
-  case "${flag}" in
-    d) BUNDLE_DIR="${OPTARG}";;
-    b) BUILD_DIR_ROOT="${OPTARG}";;
-    q) QUEUE="${OPTARG}";;
-    a) ACCOUNT="${OPTARG}";;
-    p) precision=${OPTARG};;
-    t) build_type=${OPTARG};;
-    c) tools=${OPTARG};;
-    l) LOCK_FILE=${OPTARG};;
-    o) html_dir=${OPTARG};;
-    x) suffix=${OPTARG};;
-    f) force_build=1;;
-    h) help="help";;
-    n) run_cmake="no";;
-  esac
-done
+    # get comamnd line args
+    while getopts d:b:q:a:p:t:c:l:o:x:fhn flag
+    do
+      case "${flag}" in
+        d) BUNDLE_DIR="${OPTARG}";;
+        b) BUILD_DIR_ROOT="${OPTARG}";;
+        q) QUEUE="${OPTARG}";;
+        a) ACCOUNT="${OPTARG}";;
+        p) precision=${OPTARG};;
+        t) build_type=${OPTARG};;
+        c) tools=${OPTARG};;
+        l) LOCK_FILE=${OPTARG};;
+        o) html_dir=${OPTARG};;
+        x) suffix=${OPTARG};;
+        f) force_build=1;;
+        h) help="help";;
+        n) run_cmake="no";;
+      esac
+    done
 
-init_logs $LOG_DIR
-log "commandline: $0 $*"
+    init_logs $LOG_DIR
+    log "commandline: $0 $*"
 
-if [ "$help" != "" ]; then
-  usage
-fi
+    if [ "$help" != "" ]; then
+      usage
+    fi
 
-# location of the mpas-bundle source dir
-if [ "$BUNDLE_DIR" = "" ]; then
-  log "source dir <-d source_dir> is required"
-  usage
-fi
+    # location of the mpas-bundle source dir
+    if [ "$BUNDLE_DIR" = "" ]; then
+      log "source dir <-d source_dir> is required"
+      usage
+    fi
 
-if [ ! -d ${BUNDLE_DIR} ]; then
-  log "source dir ${BUNDLE_DIR} does not exist"
-  usage
-fi
+    if [ ! -d ${BUNDLE_DIR} ]; then
+      log "source dir ${BUNDLE_DIR} does not exist"
+      usage
+    fi
 
-if [ "$BUILD_DIR_ROOT" == "" ]; then
-  BUILD_DIR_ROOT="${BUNDLE_DIR}/.."
-else
-  if [ ! -d ${BUILD_DIR_ROOT} ]; then
-    log "output dir ${BUILD_DIR_ROOT} does not exist"
-    usage
-  fi
-fi
+    if [ "$BUILD_DIR_ROOT" == "" ]; then
+      BUILD_DIR_ROOT="${BUNDLE_DIR}/.."
+    else
+      if [ ! -d ${BUILD_DIR_ROOT} ]; then
+        log "output dir ${BUILD_DIR_ROOT} does not exist"
+        usage
+      fi
+    fi
 
-if [[ "$QUEUE" != "$MAIN_Q" && "$QUEUE" != "$PREEMPT_Q" && "$QUEUE" != "$DEV_Q" ]]; then
-  log "queue \"${QUEUE}\" is invalid"
-  usage
-fi
+    if [[ "$QUEUE" != "$MAIN_Q" && "$QUEUE" != "$PREEMPT_Q" && "$QUEUE" != "$DEV_Q" ]]; then
+      log "queue \"${QUEUE}\" is invalid"
+      usage
+    fi
 
-if [ "$tools" = "" ]; then
-  log "compiler <-c compiler> is required"
-  usage
-fi
+    if [ "$tools" = "" ]; then
+      log "compiler <-c compiler> is required"
+      usage
+    fi
+    if [[ "$tools" != "gnu" && "$tools" != "intel" && "$tools" != "nvhpc" && "$tools" != "all" ]]; then
+      log "compiler $tools is invalid"
+      usage
+    fi
 
-if [ "$precision" = "2" ]; then
-  dbl_precision="ON"
-else
-  dbl_precision="OFF"
-fi
+    if [ "$precision" = "2" ]; then
+      dbl_precision="ON"
+    else
+      dbl_precision="OFF"
+    fi
 
-log "q:$QUEUE precision: $precision $dbl_precision force: $force_build"
+    log "q:$QUEUE precision: $precision $dbl_precision force: $force_build"
 
-# acquire an exclusive lock on our ${LOCK_FILE} file to make sure
-# only one copy of this script is running at a time.
-# wait 10 seconds between attempts to get the lockfile,
-# retry 360 times ( 1 hr) , delete lockfile which is over 20 hours old.
-# Also, the compiles can get stuck in PBS queues for lengthy periods, so we want to queue up
-# single and double precision builds simultaneously.
-if [ "$LOCK_FILE" = "" ]; then
-  LOCK_FILE="${BUNDLE_DIR}/$lock_file_name"
-fi
-lockfile -10 -r 360 -l 72000 "${LOCK_FILE}" || another_instance
-trap remove_lock EXIT
-log "lockfile: ${LOCK_FILE}"
+    # acquire an exclusive lock on our ${LOCK_FILE} file to make sure
+    # only one copy of this script is running at a time.
+    # wait 10 seconds between attempts to get the lockfile,
+    # retry 360 times ( 1 hr) , delete lockfile which is over 20 hours old.
+    # Also, the compiles can get stuck in PBS queues for lengthy periods, so we want to queue up
+    # single and double precision builds simultaneously.
+    if [ "$LOCK_FILE" = "" ]; then
+      LOCK_FILE="${BUNDLE_DIR}/$lock_file_name"
+    fi
+    lockfile -10 -r 360 -l 72000 "${LOCK_FILE}" || another_instance
+    trap remove_lock EXIT
+    log "lockfile: ${LOCK_FILE}"
 
-scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-log "[${timestamp}]: Running ${0} on $(hostname)\n\tfrom $(pwd)\n\tscriptdir=${scriptdir}" 
-log "using job queue ${QUEUE}"
+    scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+    log "[${timestamp}]: Running ${0} on $(hostname)\n\tfrom $(pwd)\n\tscriptdir=${scriptdir}" 
+    log "using job queue ${QUEUE}"
 
-#  check for any changed source, store all current git sha's in a file
-declare -r sha_file="${LOG_DIR}/git_shas.$timestamp"
-check_git_changes ${BUNDLE_DIR} $sha_file
-declare -r git_changes=$?
-log "check_git_changes returned $git_changes"
+    #  check for any changed source, store all current git sha's in a file
+    declare -r sha_file="${LOG_DIR}/git_shas.$timestamp"
+    check_git_changes ${BUNDLE_DIR} $sha_file
+    declare -r git_changes=$?
+    log "check_git_changes returned $git_changes"
 
-# check to see if any source files changed, do nothing if no changes
-if [ "$force_build" -eq 0 ]; then
-  if [ "$git_changes" -eq 1 ]; then
-    force_build=1
-    log "forcing build, check_git_changes returned 1"
-  fi
-fi
+    # check to see if any source files changed, do nothing if no changes
+    if [ "$force_build" -eq 0 ]; then
+      if [ "$git_changes" -eq 1 ]; then
+        force_build=1
+        log "forcing build, check_git_changes returned 1"
+      fi
+    fi
 
+    if [ "$force_build" -eq 0 ]; then
+      log "no source changes, not running"
+      return
+    fi
 
-if [ "$force_build" -eq 0 ]; then
-  log "no source changes, not running"
-else
-  log "building with tools ${tools}"
-  # build gnu version and run ctest
-  if [[ "$tools" == "gnu" || "$tools" == "all" ]]; then
-    build_and_test "gnu" $dbl_precision $html_dir $run_cmake $sha_file $build_type $suffix
-  fi
+    log "building with tools ${tools}"
+    # build gnu version and run ctest
+    if [[ "$tools" == "gnu" || "$tools" == "all" ]]; then
+      build_and_test "gnu" $dbl_precision $html_dir $run_cmake $sha_file $build_type $suffix
+    fi
 
-  # build intel version and run ctest
-  if [[ "$tools" == "intel" || "$tools" == "all" ]]; then
-    build_and_test "intel" $dbl_precision $html_dir $run_cmake $sha_file $build_type $suffix
-  fi
+    # build intel version and run ctest
+    if [[ "$tools" == "intel" || "$tools" == "all" ]]; then
+      build_and_test "intel" $dbl_precision $html_dir $run_cmake $sha_file $build_type $suffix
+    fi
 
-  # build nvhpc version and run ctest
-  if [[ "$tools" == "nvhpc" || "$tools" == "all" ]]; then
-    build_and_test "nvhpc" $dbl_precision $html_dir $run_cmake $sha_file $build_type $suffix
-  fi
-fi
+    # build nvhpc version and run ctest
+    if [[ "$tools" == "nvhpc" || "$tools" == "all" ]]; then
+      build_and_test "nvhpc" $dbl_precision $html_dir $run_cmake $sha_file $build_type $suffix
+    fi
+}
+
+main "$@"
 
