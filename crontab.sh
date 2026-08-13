@@ -72,7 +72,8 @@ bld_suffix=date +%y_%0m_%0d
 # make a double precision build of mpas-bundle and run ctest
 # the build script won't do anything if there have been no changes to the
 # modules used to create mpas-bundle (unless the '-f' parameter is provided).
-05 00 * * 1-5 ssh $derecho "echo $(${bld_suffix}) ${bundle_dir} 'make 2p'  >> $log_dir/cron.log && cd $bundle_dir && git fetch -p >> $log_dir/cron.log ; git status >> $log_dir/cron.log ; git pull >> $log_dir/cron.log" ; ssh $derecho "$script_dir/$build_script -d $bundle_dir -b $builds_dir -q develop@desched1 -c gnu -p 2 -a nmmm0015"
+#05 00 * * 1-5 ssh $derecho "echo $(${bld_suffix}) ${bundle_dir} 'make 2p'  >> $log_dir/cron.log && cd $bundle_dir && git fetch -p >> $log_dir/cron.log ; git status >> $log_dir/cron.log ; git pull >> $log_dir/cron.log" ; ssh $derecho "$script_dir/$build_script -d $bundle_dir -b $builds_dir -q develop@desched1 -c gnu -p 2 -a nmmm0015"
+05 00 * * 1-5 ssh $derecho "$script_dir/update-repo.sh -d $bundle_dir" && ssh $derecho "$script_dir/$build_script -d $bundle_dir -b $builds_dir -q develop@desched1 -c gnu -p 2 -a nmmm0015"
 
 # start at 12:05 AM on Sat 
 # always build and run ctests, even if no source change from previous run (-f)
@@ -91,7 +92,8 @@ bld_suffix=date +%y_%0m_%0d
 
 # at 12:05 am on Sun update the develop branch of  MPAS-Workflow repo and run the workflow
 suffix=$(date +%F)
-#05 00 * * 7 ssh $derecho "echo $suffix 'run workflow in ' $workflow_dir >> $log_dir/cron.log && cd $workflow_dir && git fetch -p >> $log_dir/cron.log 2>&1 && git co develop >> $log_dir/cron.log 2>&1 && git pull >> $log_dir/cron.log 2>&1 && $script_dir/$workflow_script -w $workflow_dir -d $bundle_build_dir -k $builds_dir/$build_script.lock -s $workflow_scenario -x $suffix -l $log_dir/cylc"
+##05 00 * * 7 ssh $derecho "echo $suffix 'run workflow in ' $workflow_dir >> $log_dir/cron.log && cd $workflow_dir && git fetch -p >> $log_dir/cron.log 2>&1 && git co develop >> $log_dir/cron.log 2>&1 && git pull >> $log_dir/cron.log 2>&1 && $script_dir/$workflow_script -w $workflow_dir -d $bundle_build_dir -k $builds_dir/$build_script.lock -s $workflow_scenario -x $suffix -l $log_dir/cylc"
+#05 00 * * 7 ssh $derecho "echo $suffix 'run workflow in ' $workflow_dir >> $log_dir/cron.log && $script_dir/update-repo.sh -d $workflow_dir -c develop && $script_dir/$workflow_script -w $workflow_dir -d $bundle_build_dir -k $builds_dir/$build_script.lock -s $workflow_scenario -x $suffix -l $log_dir/cylc"
 05 00 * * 7 ssh $derecho "echo $suffix 'run workflow in ' $workflow_dir >> $log_dir/cron.log && cd $workflow_dir && $script_dir/$workflow_script -w $workflow_dir -d $bundle_build_dir -k $builds_dir/$build_script.lock -s $workflow_scenario -x $suffix -l $log_dir/cylc"
 # at 1:05 am on Sun run the 3dhybrid workflow
 05 01 * * 7 ssh $derecho "echo $suffix 'run workflow in ' $workflow_dir >> $log_dir/cron.log && cd $workflow_dir && $script_dir/$workflow_script -w $workflow_dir -d $bundle_build_dir -k $builds_dir/$build_script.lock -s $workflow_scenario2 -x $suffix -l $log_dir/cylc"
@@ -99,7 +101,8 @@ suffix=$(date +%F)
 # run the weekly cylc scenario using a gpu build of MPAS-Model
 suffix_gpu=2025-05-30_new
 workflow_scenario_gpu=scenarios/3denvar_OIE120km_WarmStart_VarBC_gpu_cron.yaml
-#55 15 * * * ssh $derecho "echo $suffix >> $log_dir/cron.log 2>&1 && cd $workflow_dir && git fetch -p >> $log_dir/cron.log 2>&1 && git co develop >> $log_dir/cron.log 2>&1 && git pull >> $log_dir/cron.log && $script_dir/$workflow_script -w $workflow_dir -d $bundle_build_dir -k $builds_dir/$build_script.lock -s $workflow_scenario_gpu -x ${suffix}_gpu -l $log_dir/cylc"
+##55 15 * * * ssh $derecho "echo $suffix >> $log_dir/cron.log 2>&1 && cd $workflow_dir && git fetch -p >> $log_dir/cron.log 2>&1 && git co develop >> $log_dir/cron.log 2>&1 && git pull >> $log_dir/cron.log && $script_dir/$workflow_script -w $workflow_dir -d $bundle_build_dir -k $builds_dir/$build_script.lock -s $workflow_scenario_gpu -x ${suffix}_gpu -l $log_dir/cylc"
+#55 15 * * * ssh $derecho "echo $suffix >> $log_dir/cron.log 2>&1 && $script_dir/update-repo.sh -d $workflow_dir -c develop && $script_dir/$workflow_script -w $workflow_dir -d $bundle_build_dir -k $builds_dir/$build_script.lock -s $workflow_scenario_gpu -x ${suffix}_gpu -l $log_dir/cylc"
 
 # at 2:05 am Mon-Fri try to graph results from the completed workflow runs
 casper=casper.hpc.ucar.edu
