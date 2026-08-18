@@ -300,8 +300,9 @@ make_graphs()
     return
   fi
 
-  # find the baseline job
-  local readonly baseline_files=($(ls ${graph_dir}/${file_base}.base*))
+  # find the baseline job.
+  # assume they use release numbers; the most recent has a higher number.
+  local readonly baseline_files=($(ls -r ${graph_dir}/${file_base}.base*))
   if [ "${#baseline_files[@]}" -eq 0 ]; then 
     log "the baseline run ${file_base}.baseline* isn't in $graph_dir, no graphs made"
     return
