@@ -184,6 +184,7 @@ check_git_changes()
   local bundle_dir=$1
   local check_changes_log=$2
   local ret_code=0
+  local pull_log=${check_changes_log}.pull
 
   # traverse subdirectories
   cd $bundle_dir
@@ -206,8 +207,8 @@ check_git_changes()
     local local_commit=$(git rev-parse --short HEAD)
     local remote_commit=$(git rev-parse --short origin/${branch})
     if [ "$local_commit" != "$remote_commit" ]; then
-      echo "updating ${remote} in branch ${branch} to sha $remote_commit." &>> $check_changes_log
-      git pull &>> $check_changes_log
+      echo "updating ${remote} in branch ${branch} to sha $remote_commit." &>> $pull_log
+      git pull &>> $pull_log
       echo "${remote} in branch ${branch} has been updated to sha $remote_commit." &>> $check_changes_log
       ret_code=1
     else
@@ -216,6 +217,9 @@ check_git_changes()
 
     cd ..
   done
+  echo "" >> $check_changes_log
+  cat $pull_log >> $check_changes_log
+  rm $pull_log
 
   return $ret_code
 }
