@@ -37,28 +37,39 @@ log_cmd()
 
 usage()
 {
-  args="-d <build_dir> [-c <compiler>] [-g] [-i] [-l <log_dir>] [-h]"
+  args="-d <repo_dir> [-c <compiler>] [-g ] [-b <branch>] [-i] [-l <log_dir>] [-h]"
   log "usage:"
   log "  make_spack.sh ${args}"
-  log "    -d <build_dir> is where the spack-stack repo is (or will be cloned to)"
+  log "    -d <repo_dir> is where the spack-stack repo is (or will be cloned to)"
   log "    -c <compiler> is one of $gcc or $oneapi, default is $gcc"
   log "    -g runs git, otherwise assume the repo is cloned and up to date"
+  log "    -b <branch> branch to clone, clones the default branch if not specified"
   log "    -i only runs install. skips creating the env and concretizing"
-  log "    -l log_dir where to put log files, default is <build_dir>"
+  log "    -l log_dir where to put log files, default is <repo_dir>"
   log "    -h prints help and exits"
   exit
 }
 
 git_clone_or_fetch()
 {
-  if [ ! -d "./${repo}" ]; then
-    log "git clone $repo_url --recurse-submodules"
-    git clone $repo_url --recurse-submodules &>> $LOGFILE
-    cd ./${repo}
+  local repo_url=$1
+  local repo_name=$2
+  local branch=$3
+
+  local branch_arg=""
+  if [ "$branch" != "" ]; then
+    branch_arg="-b $branch"
+  fi
+
+  echo "repo=$repo_url repo_name=$repo_name branch=$branch"
+  if [ ! -d "./${repo_name}" ]; then
+    log "git clone $repo_url $branch_arg --recurse-submodules"
+    git clone $repo_url $branch_arg --recurse-submodules &>> $LOGFILE
+    cd ./${repo_name}
   else
-    cd ./${repo}
+    cd ./${repo_name}
     if [ ! -d "./.git" ]; then
-      log "${repo_dir}/${repo} has no .git"
+      log "${repo_dir}/${repo_name} has no .git"
       exit 1
     fi
     log "git fetch --recurse-submodules "
@@ -80,27 +91,29 @@ main()
 
   #local repo_dir="/glade/derecho/scratch/jwittig/repos-s/spack-stack-dev"
   declare -r script_repo_dir="/glade/work/jwittig/repos1/mpas-jedi-auto-test"
+  declare -r repo_url="https://github.com/JCSDA/spack-stack.git"
+  declare -r repo="spack-stack"
   local repo_dir=""
-  local repo="spack-stack"
-  local repo_url="https://github.com/JCSDA/spack-stack.git"
 
   local compiler=$gcc
   echo "compiler:$compiler"
 
-  local site="derecho"
-  local template="unified-dev"
+  declare -r site="derecho"
+  declare -r template="unified-dev"
 
+  local branch=""
   local log_dir=""
   local git=""
   local install_only=""
   local help=""
 
-  while getopts c:d:l:gih flag
+  while getopts c:d:l:b:gih flag
   do
     case "${flag}" in
       c) compiler="${OPTARG}";;
       d) repo_dir="${OPTARG}";;
       l) log_dir="${OPTARG}";;
+      b) branch="${OPTARG}";;
       g) git="true";;
       i) install_only="true";;
       h) help="help";;
@@ -113,7 +126,7 @@ main()
 
   # the root build dir is required
   if [ "$repo_dir" == "" ]; then
-    log "-d <build_dir> is required"
+    log "-d <repo_dir> is required"
     usage
   fi
 
@@ -126,12 +139,11 @@ main()
   local hname="$(hostname)"
   log "running on $hname in $repo_dir"
 
-
   # go to the build directory and clone/update the repository
   cd $repo_dir
 
-  if [ "$git" != "" ]; then
-    git_clone_or_fetch
+  if [[ "$git" != "" || "$branch" != "" ]]; then
+    git_clone_or_fetch $repo_url $repo $branch
   fi
 
   cd ${repo_dir}/${repo}
