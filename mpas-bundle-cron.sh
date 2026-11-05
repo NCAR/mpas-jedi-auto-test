@@ -45,7 +45,7 @@ DEV_Q="develop@desched1"
 
 usage()
 {
-  args="-d <bundle_dir> -c <compiler> [-x <suffix>] [-q <queue>] [-a <account>] [ -p <precision>] [-l <lock_file>] [-o <out_dir>] [-f] [-h] [-n]"
+  args="-d <bundle_dir> -c <compiler> [-x <suffix>] [-q <queue>] [-a <account>] [ -p <precision>] [-l <lock_file>] [-o <out_dir>] [-t <build_type>] [-f] [-h] [-n]"
   log "usage:"
   log "  mpas-bundle-cron.sh ${args}"
   log "    -d <bundle_dir> is where the mpas-bundle repo has been cloned to"
@@ -57,6 +57,7 @@ usage()
   log "    -l <lock_file> is absolute path to the lock file which indicates the build is running,"
   log "        default is <bundle_dir>/$lock_file_name"
   log "    -o <out_dir> is where the html files will be copied to, default is $html_dir"
+  log "    -t <build_type> specify build type, default is Release"
   log "    -f means force-build, always build even if no source changed since last build"
   log "    -h prints help and exits"
   log "    -n means don't run cmake"
@@ -175,7 +176,8 @@ run_cmake()
     echo "make update" 
     make update |& tee make.update.log;
   fi 
-  cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DBUNDLE_SKIP_RTTOV=ON -DMPAS_DOUBLE_PRECISION=${precision} -DBUILD_IODA_CONVERTERS=ON -DCMAKE_BUILD_TYPE=${build_type} ctest_update  ${bundle_dir};
+  echo "cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DBUNDLE_SKIP_RTTOV=ON -DMPAS_DOUBLE_PRECISION=${precision} -DBUILD_IODA_CONVERTERS=ON -DCMAKE_BUILD_TYPE=${build_type} ctest_update  ${bundle_dir}" >> ${LOGFILE};
+  cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DBUNDLE_SKIP_RTTOV=ON -DMPAS_DOUBLE_PRECISION=${precision} -DBUILD_IODA_CONVERTERS=ON -DCMAKE_BUILD_TYPE=${build_type} ctest_update  ${bundle_dir} >> ${LOGFILE};
 }
 
 # check for changes in git repositories
