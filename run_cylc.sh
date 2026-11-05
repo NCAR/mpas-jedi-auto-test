@@ -47,7 +47,7 @@ usage()
   echo""
   log "usage:"
   log "to run a cylc workflow"
-  log "  run_cylc.sh -w <workflow_dir> [-d <bundle_dir> [-k <lock_file>]] -s <scenario> -x <suffix> [-l log_dir] [-h] "
+  log "  run_cylc.sh -w <workflow_dir> [-d <bundle_dir> [-k <lock_file>]] -s <scenario> -x <suffix> [-l log_dir] [-a <account>] [-h] "
   log "    -w <workflow_dir> the MPAS-Workflow location"
   log "    -d <bundle_dir> where the mpas-bundle repo has been built"
   log "        this will override the bundle set in the workflow's Build.py"
@@ -56,6 +56,7 @@ usage()
   log "    -s <scenario> a scenario to run (relative to workflow_dir)"
   log "    -x <suffix> the suffix to append to the names of the workflows to run"
   log "    -l <log_dir> where logs and data should be written, default $LOGDIR"
+  log "    -a <account> account to charge PBS jobs to, default nmmm0015"
   log "    -h prints help and exits"
   log "to generate graphs"
   log "  run_cylc.sh -w <workflow_dir> -g <graphics_dir> -o <output_dir> [-m <mmm_webserver>] [-c <cylc_graph_dir>] [-l log_dir] [-e <email_addrs>] [-h] "
@@ -68,6 +69,7 @@ usage()
   log "       if not provided the graphs won't get copied to the webserver"
   log "    -l <log_dir> where logs and data should be written, default $LOGDIR"
   log "    -e <email_addrs> comma separated list of email addrs to receive large variance alerts"
+  log "    -a <account> account to charge PBS jobs to, default nmmm0015"
   log "    -h prints help and exits"
   exit 1
 }
@@ -112,17 +114,18 @@ run_cylc()
   local suffix=".$3${CRON_SUFFIX}"   # a string to append to the workflow names to uniquely identify them
   local base_dir=$4 # base file directory
   local bundle_dir=$5 # location of a mpas-bundle build (should be single precision)
+  local readonly account=$6
   local running_dir="$base_dir/$RUN_DIR"
   local date="$(date +%F-%H-%M)"
   
 
   cd $work_dir
   if [ "$bundle_dir" != "" ]; then
-    log "./Run.py $scenario -b $bundle_dir  -x $suffix"
-    $work_dir/Run.py $scenario -b $bundle_dir  -x $suffix  2>&1 | tee -a ${LOGFILE}
+    log "./Run.py $scenario -b $bundle_dir  -x $suffix -ac $account -an $account"
+    $work_dir/Run.py $scenario -b $bundle_dir  -x $suffix -ac $account -an $account 2>&1 | tee -a ${LOGFILE}
   else
-    log "./Run.py $scenario -x $suffix"
-    $work_dir/Run.py $scenario -x $suffix  2>&1 | tee -a ${LOGFILE}
+    log "./Run.py $scenario -x $suffix -ac $account -an $account"
+    $work_dir/Run.py $scenario -x $suffix  -ac $account -an $account 2>&1 | tee -a ${LOGFILE}
   fi
 
   # save the name of the workflow just started above in order to check for success later.
@@ -254,6 +257,7 @@ make_graphs()
   local readonly files_dir=$3  # root directory where job files are
   local readonly success_file=$4 # the workflow file to process.
   local readonly email_addrs=$5 # email addrs to send alert emails for large variances
+  local readonly account=$6
 
   # assume a name of <workflow>.<yy-mm-dd>* for current runs, 
   # assume a name of <workflow>.baseline* for the baseline run,
@@ -281,7 +285,7 @@ make_graphs()
     log "unknown host: $NCAR_HOST, not making graphs"
     return
   fi
-  local readonly account="-a nmmm0015"
+  local readonly account_args="-a $account"
   local readonly memory="-m 12"
   # SpawnAnalyzeStats arguments
   local readonly last_cycle="-l 20180421T18"
@@ -336,7 +340,7 @@ make_graphs()
   fi
   log "base run: $base_run label ${base_label} in file ${baseline_files[0]}"
 
-  local readonly base_args=" -s $graphics_dir $last_cycle $queue $account -n 1 $memory"
+  local readonly base_args=" -s $graphics_dir $last_cycle $queue $account_args -n 1 $memory"
   local model_base_sync_job=""
   local model_prev_sync_job=""
   local obs_base_sync_job=""
@@ -434,9 +438,10 @@ main()
   local help=""
   local CYLC_ENV_SCRIPT="env-setup/machine.sh"
   local email_addrs="no-email"
+  local account="nmmm0015"
 
 # get command line args
-  while getopts w:d:k:g:o:s:x:l:m:c:e:h flag
+  while getopts w:d:k:g:o:s:x:l:m:c:e:a:h flag
   do
     case "${flag}" in
       w) workflow_dir="${OPTARG}";;
@@ -450,6 +455,7 @@ main()
       m) webserver=${OPTARG};;
       c) web_graphs_dir=${OPTARG};;
       e) email_addrs=${OPTARG};;
+      a) account=${OPTARG};;
       h) help="help";;
     esac
   done
@@ -506,7 +512,7 @@ main()
       fi
     fi
 
-    run_cylc $workflow_dir $scenario $suffix $LOGDIR $bundle_dir 
+    run_cylc $workflow_dir $scenario $suffix $LOGDIR $bundle_dir $account
   else
     check_exists "$output_dir" "output dir" "dir"
     check_exists "$graphics_dir" "graphics dir" "dir"
@@ -528,8 +534,8 @@ main()
     local passed_jobs=$(ls $LOGDIR/$PASS_DIR)
     for job in $passed_jobs ; do
       # make a graph comparing the 2 oldest workflows which passed
-      log "make_graphs $graphics_dir $output_dir $LOGDIR $job $email_addrs"
-      make_graphs $graphics_dir $output_dir $LOGDIR $job $email_addrs
+      log "make_graphs $graphics_dir $output_dir $LOGDIR $job $email_addrs $account"
+      make_graphs $graphics_dir $output_dir $LOGDIR $job $email_addrs $account
     done
     if [ "$webserver" != "" ] && [ "$web_graphs_dir" != "" ]; then
       copy_graphs $output_dir $webserver $web_graphs_dir
