@@ -45,7 +45,7 @@ DEV_Q="develop@desched1"
 
 usage()
 {
-  args="-d <bundle_dir> -c <compiler> [-x <suffix>] [-q <queue>] [-a <account>] [ -p <precision>] [-l <lock_file>] [-o <out_dir>] [-t <build_type>] [-f] [-h] [-n]"
+  args="-d <bundle_dir> -c <compiler> [-x <suffix>] [-q <queue>] [-a <account>] [ -p <precision>] [-l <lock_file>] [-o <out_dir>] [-t <build_type>] [-f] [-h] [-n] [-s]"
   log "usage:"
   log "  mpas-bundle-cron.sh ${args}"
   log "    -d <bundle_dir> is where the mpas-bundle repo has been cloned to"
@@ -61,6 +61,7 @@ usage()
   log "    -f means force-build, always build even if no source changed since last build"
   log "    -h prints help and exits"
   log "    -n means don't run cmake"
+  log "    -s means build atlas"
   exit 1
 }
 
@@ -168,16 +169,26 @@ run_cmake()
   local cc=$3
   local precision=$4
   local build_type=$5
+  local build_atlas=$6
+
+  # if the parameter to enable building atlas isn't provided, don't build it.
+  if [[ -z "$build_atlas" ]]; then
+    build_atlas_parm="-DBUNDLE_SKIP_ATLAS=ON"
+  elif [[ "yes" == "$build_atlas" ]]; then
+    build_atlas_parm="-DBUNDLE_SKIP_ATLAS=OFF"
+  else
+    build_atlas_parm="-DBUNDLE_SKIP_ATLAS=ON"
+  fi
 
   cd $build_dir 
-  source ${bundle_dir}/env-setup/${cc}-derecho.sh 
-  source ${bundle_dir}/env-setup/ioda-modules.list 
+  source ${bundle_dir}/env-setup/${cc}-derecho.sh
+  source ${bundle_dir}/env-setup/ioda-modules.list
   if [ -f Makefile ]; then
     echo "make update" 
     make update |& tee make.update.log;
   fi 
-  echo "cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DBUNDLE_SKIP_RTTOV=ON -DMPAS_DOUBLE_PRECISION=${precision} -DBUILD_IODA_CONVERTERS=ON -DCMAKE_BUILD_TYPE=${build_type} ctest_update  ${bundle_dir}" >> ${LOGFILE};
-  cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DBUNDLE_SKIP_RTTOV=ON -DMPAS_DOUBLE_PRECISION=${precision} -DBUILD_IODA_CONVERTERS=ON -DCMAKE_BUILD_TYPE=${build_type} ctest_update  ${bundle_dir} >> ${LOGFILE};
+  echo "cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DBUNDLE_SKIP_RTTOV=ON -DMPAS_DOUBLE_PRECISION=${precision} -DBUILD_IODA_CONVERTERS=ON ${build_atlas_parm} -DCMAKE_BUILD_TYPE=${build_type} ctest_update  ${bundle_dir}" >> ${LOGFILE};
+  cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DBUNDLE_SKIP_RTTOV=ON -DMPAS_DOUBLE_PRECISION=${precision} -DBUILD_IODA_CONVERTERS=ON ${build_atlas_parm} -DCMAKE_BUILD_TYPE=${build_type} ctest_update  ${bundle_dir} >> ${LOGFILE};
 }
 
 # check for changes in git repositories
@@ -408,7 +419,7 @@ make_html()
     mv ${resultsfile} ctest.results.log.${timestamp}
     log "scp ./ctest.results.log.${timestamp} ${dest}/results/"
     scp ./ctest.results.log.${timestamp} ${dest}/results/ || { log "scp ctest_results failed"; }
-    mv ctest.results.log.${timestamp} ctest.results.log.old
+    rm ctest.results.log.${timestamp}
   else
     log "${CTEST_LOGFILE} doesn't exist"
   fi
@@ -420,7 +431,7 @@ make_html()
     mv ${iodaresultsfile} ctest-ioda.results.log.${timestamp}
     log "scp ./ctest-ioda.results.log.${timestamp} ${dest}/results/"
     scp ./ctest-ioda.results.log.${timestamp} ${dest}/results/ || { log "scp ctest_results failed"; }
-    mv ctest-ioda.results.log.${timestamp} ctest-ioda.results.log.old
+    rm ctest-ioda.results.log.${timestamp}
   else
     log "${CTEST_IODA_LOGFILE} doesn't exist"
   fi
@@ -447,7 +458,8 @@ build_and_test()
   local run_cmake=$4
   local sha_file=$5
   local build_type=$6
-  local suffix=$7
+  local build_atlas=$7
+  local suffix=$8
 
   local build_dir_suffix=""
   if [ $dbl_p == "ON" ]; then
@@ -477,8 +489,8 @@ build_and_test()
   # run cmake on a login node (compute nodes have poor internet transmission)
   # block until cmake finishes
   if [[ "$run_cmake" == "yes" ]]; then
-    log "run_cmake ${BUILD_DIR} ${BUNDLE_DIR} ${cc} $dbl_p $build_type"
-    run_cmake ${BUILD_DIR} ${BUNDLE_DIR} ${cc} $dbl_p $build_type
+    log "run_cmake ${BUILD_DIR} ${BUNDLE_DIR} ${cc} $dbl_p $build_type $build_atlas"
+    run_cmake ${BUILD_DIR} ${BUNDLE_DIR} ${cc} $dbl_p $build_type $build_atlas
   fi
 
   # create script to run gnu make and run it
@@ -540,12 +552,13 @@ main()
     LOG_DIR="${HOME}/my_cron_logs/"
     help=""
     run_cmake="yes"
+    build_atlas="no"
     suffix=""
     ACCOUNT="nmmm0015"
     build_type="Release"
 
     # get comamnd line args
-    while getopts d:b:q:a:p:t:c:l:o:x:fhn flag
+    while getopts d:b:q:a:p:t:c:l:o:x:fhns flag
     do
       case "${flag}" in
         d) BUNDLE_DIR="${OPTARG}";;
@@ -561,6 +574,7 @@ main()
         f) force_build=1;;
         h) help="help";;
         n) run_cmake="no";;
+        s) build_atlas="yes";;
       esac
     done
 
@@ -652,17 +666,17 @@ main()
     log "building with tools ${tools}"
     # build gnu version and run ctest
     if [[ "$tools" == "gnu" || "$tools" == "all" ]]; then
-      build_and_test "gnu" $dbl_precision $html_dir $run_cmake $sha_file $build_type $suffix
+      build_and_test "gnu" $dbl_precision $html_dir $run_cmake $sha_file $build_type $build_atlas $suffix
     fi
 
     # build intel version and run ctest
     if [[ "$tools" == "intel" || "$tools" == "all" ]]; then
-      build_and_test "intel" $dbl_precision $html_dir $run_cmake $sha_file $build_type $suffix
+      build_and_test "intel" $dbl_precision $html_dir $run_cmake $sha_file $build_type $build_atlas $suffix
     fi
 
     # build nvhpc version and run ctest
     if [[ "$tools" == "nvhpc" || "$tools" == "all" ]]; then
-      build_and_test "nvhpc" $dbl_precision $html_dir $run_cmake $sha_file $build_type $suffix
+      build_and_test "nvhpc" $dbl_precision $html_dir $run_cmake $sha_file $build_type $build_atlas $suffix
     fi
 }
 
