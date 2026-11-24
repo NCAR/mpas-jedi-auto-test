@@ -10,10 +10,15 @@ log_dir=~/my_cron_logs
 # set this to the directory the mpas-bundle repository has been cloned to
 # don't put it on scratch or it will get corrupted due to scratch retention policy
 bundle_dir=/glade/work/jwittig/repos1/mpas-bundle-cron-src/mpas-bundle
+bundle_dir_ss193=/glade/work/jwittig/repos1/mpas-bundle-cron-src-ss1.9.3/mpas-bundle
+bundle_dir_ss22=/glade/work/jwittig/repos1/mpas-bundle-cron-src-ss2.2/mpas-bundle
 # set this to where the builds are - we want them on scratch so they get cleaned up
 builds_dir=/glade/derecho/scratch/jwittig/repos-s/mpas-bundle-cron/
+builds_dir_ss193=/glade/derecho/scratch/jwittig/repos-s/mpas-bundle-cron-ss1.9.3/
+builds_dir_ss22=/glade/derecho/scratch/jwittig/repos-s/mpas-bundle-cron-ss2.2/
 # the directory where the single precision bundle build is
 bundle_build_dir="'/glade/derecho/scratch/jwittig/repos-s/mpas-bundle-cron/build-gnu-1p_[0-9][0-9]'"
+bundle_build_dir_ss22="'/glade/derecho/scratch/jwittig/repos-s/mpas-bundle-cron-ss2.2/build-gnu-1p_[0-9][0-9]'"
 
 # this is the location of the scripts
 script_dir=/glade/work/jwittig/repos1/mpas-jedi-auto-test
@@ -72,13 +77,22 @@ bld_suffix=date +%y_%0m_%0d
 # make a double precision build of mpas-bundle and run ctest
 # the build script won't do anything if there have been no changes to the
 # modules used to create mpas-bundle (unless the '-f' parameter is provided).
-05 00 * * 1-5 ssh $derecho "echo $(${bld_suffix}) ${bundle_dir} 'make 2p'  >> $log_dir/cron.log && cd $bundle_dir && git fetch -p >> $log_dir/cron.log ; git status >> $log_dir/cron.log ; git pull >> $log_dir/cron.log" ; ssh $derecho "$script_dir/$build_script -d $bundle_dir -b $builds_dir -q develop@desched1 -c gnu -p 2 -a nmmm0015"
+# spack-stack1.9.3 build
+05 00 * * 1-5 ssh $derecho "echo $(date) echo $(${bld_suffix}) ${bundle_dir_ss193} 'make 2p'  >> $log_dir/cron.log && cd $bundle_dir_ss193 && git fetch -p >> $log_dir/cron.log ; git status >> $log_dir/cron.log ; git pull >> $log_dir/cron.log" ; ssh $derecho "$script_dir/$build_script -d $bundle_dir_ss193 -b $builds_dir_ss193 -q develop@desched1 -c gnu -p 2 -f -s -a nmmm0015"
+# spack-stack2.2 build
+25 00 * * 1-5 ssh $derecho "echo $(date) echo $(${bld_suffix}) ${bundle_dir_ss22} 'make 2p'  >> $log_dir/cron.log && cd $bundle_dir_ss22 && git fetch -p >> $log_dir/cron.log ; git status >> $log_dir/cron.log ; git pull >> $log_dir/cron.log" ; ssh $derecho "$script_dir/$build_script -d $bundle_dir_ss22 -b $builds_dir_ss22 -q develop@desched1 -c gnu -p 2 -f -a nmmm0015"
 
 # start at 12:05 AM on Sat 
 # always build and run ctests, even if no source change from previous run (-f)
-05 00 * * 6 ssh $derecho "$script_dir/$build_script -d $bundle_dir -b $builds_dir -q develop@desched1 -c gnu -p 2 -f -a nmmm0015"
-05 02 * * 6 ssh $derecho "$script_dir/$build_script -d $bundle_dir -b $builds_dir -q develop@desched1 -c gnu -p 2 -f -a nmmm0015 -t RelWithDebInfo"
-05 03 * * 6 ssh $derecho "$script_dir/$build_script -d $bundle_dir -b $builds_dir -q develop@desched1 -c gnu -p 2 -f -a nmmm0015 -t Debug"
+# spack-stack 1.9.3 builds
+05 00 * * 6 ssh $derecho "$script_dir/$build_script -d $bundle_dir_ss193 -b $builds_dir_ss193 -q develop@desched1 -c gnu -p 2 -f -s -a nmmm0015"
+25 00 * * 6 ssh $derecho "$script_dir/$build_script -d $bundle_dir_ss193 -b $builds_dir_ss193 -q develop@desched1 -c gnu -p 2 -f -s -a nmmm0015 -t RelWithDebInfo"
+45 00 * * 6 ssh $derecho "$script_dir/$build_script -d $bundle_dir_ss193 -b $builds_dir_ss193 -q develop@desched1 -c gnu -p 2 -f -s -a nmmm0015 -t Debug"
+
+# spack-stack 2.2 builds
+05 01 * * 6 ssh $derecho "$script_dir/$build_script -d $bundle_dir_ss22 -b $builds_dir_ss22 -q develop@desched1 -c gnu -p 2 -f -a nmmm0015"
+25 01 * * 6 ssh $derecho "$script_dir/$build_script -d $bundle_dir_ss22 -b $builds_dir_ss22 -q develop@desched1 -c gnu -p 2 -f -a nmmm0015 -t RelWithDebInfo"
+45 01 * * 6 ssh $derecho "$script_dir/$build_script -d $bundle_dir_ss22 -b $builds_dir_ss22 -q develop@desched1 -c gnu -p 2 -f -a nmmm0015 -t Debug"
 
 # start at 1:05 AM on Sat 
 # always build, even if no source change from previous run (-f)
