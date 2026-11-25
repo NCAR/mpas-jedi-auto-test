@@ -9,16 +9,17 @@ log_dir=~/my_cron_logs
 
 # set this to the directory the mpas-bundle repository has been cloned to
 # don't put it on scratch or it will get corrupted due to scratch retention policy
-bundle_dir=/glade/work/jwittig/repos1/mpas-bundle-cron-src/mpas-bundle
 bundle_dir_ss193=/glade/work/jwittig/repos1/mpas-bundle-cron-src-ss1.9.3/mpas-bundle
 bundle_dir_ss22=/glade/work/jwittig/repos1/mpas-bundle-cron-src-ss2.2/mpas-bundle
+bundle_dir_old=/glade/work/jwittig/repos1/mpas-bundle-cron-src/mpas-bundle
 # set this to where the builds are - we want them on scratch so they get cleaned up
-builds_dir=/glade/derecho/scratch/jwittig/repos-s/mpas-bundle-cron/
 builds_dir_ss193=/glade/derecho/scratch/jwittig/repos-s/mpas-bundle-cron-ss1.9.3/
 builds_dir_ss22=/glade/derecho/scratch/jwittig/repos-s/mpas-bundle-cron-ss2.2/
+builds_dir_old=/glade/derecho/scratch/jwittig/repos-s/mpas-bundle-cron/
 # the directory where the single precision bundle build is
-bundle_build_dir="'/glade/derecho/scratch/jwittig/repos-s/mpas-bundle-cron/build-gnu-1p_[0-9][0-9]'"
+bundle_build_dir_ss193="'/glade/derecho/scratch/jwittig/repos-s/mpas-bundle-cron-ss1.9.3/build-gnu-1p_[0-9][0-9]'"
 bundle_build_dir_ss22="'/glade/derecho/scratch/jwittig/repos-s/mpas-bundle-cron-ss2.2/build-gnu-1p_[0-9][0-9]'"
+bundle_build_dir_old="'/glade/derecho/scratch/jwittig/repos-s/mpas-bundle-cron/build-gnu-1p_[0-9][0-9]'"
 
 # this is the location of the scripts
 script_dir=/glade/work/jwittig/repos1/mpas-jedi-auto-test
@@ -33,6 +34,8 @@ workflow_dir=/glade/work/jwittig/repos1/MPAS-Workflow-cron
 # the workflow scenario to run, relative to the workflow directory
 workflow_scenario=scenarios/3denvar_OIE120km_WarmStart_VarBC_cron.yaml
 workflow_scenario2=scenarios/3dhybrid_OIE120km_WarmStart_cron.yaml
+workflow_scenario_ss2=scenarios/3denvar_OIE120km_WarmStart_VarBC_ss22_cron.yaml
+workflow_scenario2_ss2=scenarios/3dhybrid_OIE120km_WarmStart_ss22_cron.yaml
 
 # the directory with the graphics scripts
 graphs_dir=/glade/work/jwittig/repos1/mpas-jedi-cron/graphics
@@ -107,9 +110,12 @@ bld_suffix=date +%y_%0m_%0d
 # at 12:05 am on Sun update the develop branch of  MPAS-Workflow repo and run the workflow
 suffix=$(date +%F)
 #05 00 * * 7 ssh $derecho "echo $suffix 'run workflow in ' $workflow_dir >> $log_dir/cron.log && cd $workflow_dir && git fetch -p >> $log_dir/cron.log 2>&1 && git co develop >> $log_dir/cron.log 2>&1 && git pull >> $log_dir/cron.log 2>&1 && $script_dir/$workflow_script -w $workflow_dir -d $bundle_build_dir -k $builds_dir/$build_script.lock -s $workflow_scenario -x $suffix -l $log_dir/cylc"
-05 00 * * 7 ssh $derecho "echo $suffix 'run workflow in ' $workflow_dir >> $log_dir/cron.log && cd $workflow_dir && $script_dir/$workflow_script -w $workflow_dir -d $bundle_build_dir -k $builds_dir/$build_script.lock -s $workflow_scenario -x $suffix -l $log_dir/cylc"
+05 00 * * 7 ssh $derecho "echo $suffix 'run workflow in ' $workflow_dir >> $log_dir/cron.log && cd $workflow_dir && $script_dir/$workflow_script -w $workflow_dir -d $bundle_build_dir_ss193 -k $builds_dir_ss193/$build_script.lock -s $workflow_scenario -x $suffix -l $log_dir/cylc"
 # at 1:05 am on Sun run the 3dhybrid workflow
-05 01 * * 7 ssh $derecho "echo $suffix 'run workflow in ' $workflow_dir >> $log_dir/cron.log && cd $workflow_dir && $script_dir/$workflow_script -w $workflow_dir -d $bundle_build_dir -k $builds_dir/$build_script.lock -s $workflow_scenario2 -x $suffix -l $log_dir/cylc"
+05 01 * * 7 ssh $derecho "echo $suffix 'run workflow in ' $workflow_dir >> $log_dir/cron.log && cd $workflow_dir && $script_dir/$workflow_script -w $workflow_dir -d $bundle_build_dir_ss193 -k $builds_dir_ss193/$build_script.lock -s $workflow_scenario2 -x $suffix -l $log_dir/cylc"
+
+# run the weekly 3denvar scenario with spack-stack 2.2
+#05 02 * * 7 ssh $derecho "echo $suffix 'run workflow in ' $workflow_dir >> $log_dir/cron.log && cd $workflow_dir && $script_dir/$workflow_script -w $workflow_dir -d $bundle_build_dir_ss22 -k $builds_dir_ss22/$build_script.lock -s $workflow_scenario_ss22 -x $suffix -l $log_dir/cylc"
 
 # run the weekly cylc scenario using a gpu build of MPAS-Model
 suffix_gpu=2025-05-30_new
