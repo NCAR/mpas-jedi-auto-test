@@ -98,7 +98,8 @@ bld_suffix=date +%y_%0m_%0d
 # always build, even if no source change from previous run (-f)
 # single precision (-p 1), to be used for cylc experiment.
 # use the date as part of the build directory name, so each week's build is unique.
-05 01 * * 6 ssh $derecho "$script_dir/$build_script -d $bundle_dir -b $builds_dir -q develop@desched1 -c gnu -p 1 -f -l $builds_dir/$build_script.lock -x $(${bld_suffix}) -a nmmm0015"
+05 02 * * 6 ssh $derecho "$script_dir/$build_script -d $bundle_dir_ss193 -b $builds_dir_ss193 -q develop@desched1 -c gnu -p 1 -f -s -x $(${bld_suffix}) -a nmmm0015"
+25 02 * * 6 ssh $derecho "$script_dir/$build_script -d $bundle_dir_ss22 -b $builds_dir_ss22 -q develop@desched1 -c gnu -p 1 -f -x $(${bld_suffix}) -a nmmm0015"
 
 # build gpu enabled MPAS-Model
 #20 12 * * 1 ssh $derecho "$script_dir/$build_script -d $bundle_dir -b $builds_dir -q develop@desched1 -c nvhpc -p 1 -f -l $builds_dir/$build_script.lock -x $(${bld_suffix}) -a nmmm0015"
